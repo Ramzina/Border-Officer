@@ -6,8 +6,7 @@ General use discord bot for all of your quirky needs.
 
 Join the support server on discord!
 
-[![image](https://github.com/Ramzina/Border-Officer/assets/136939704/33edac57-1949-481d-81f0-504252918c50)
-](https://discord.gg/3PhGf6yHuS)
+[https://github.com/Ramzina/Border-Officer/assets/136939704/33edac57-1949-481d-81f0-504252918c50](https://discord.gg/3PhGf6yHuS)
 
 # Clone the repo
 
