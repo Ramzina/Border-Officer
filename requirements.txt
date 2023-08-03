@@ -1,0 +1,8 @@
+discord
+python-weather
+time
+aiosqlite
+datetime
+asyncio
+os
+random
