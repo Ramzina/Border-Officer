@@ -1,5 +1,8 @@
 # Border-Officer
-This is code for my personal Discord bot, Border officer only used in a couple servers. The code is not the best but is still being worked on!
+
+General use discord bot for all of your quirky needs.
+
+https://discord.gg/3PhGf6yHuS
 
 # Clone the repo
 
