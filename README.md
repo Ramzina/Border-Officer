@@ -1,12 +1,13 @@
 # Border-Officer
 This is code for my personal Discord bot, Border officer only used in a couple servers. The code is not the best but is still being worked on!
 
-# [Requirements](https://github.com/Ramzina/Border-Officer/blob/main/requirements.txt)
+# Clone the repo
 
-Clone the repo:
 ```
 git clone https://github.com/Ramzina/Border-Officer.git
 ```
+
+# [Requirements](https://github.com/Ramzina/Border-Officer/blob/main/requirements.txt)
 
 Run:
 ```
