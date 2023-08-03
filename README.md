@@ -4,7 +4,9 @@ General use discord bot for all of your quirky needs.
 
 ### Join the support server
 
-Join the support server on discord! [![image](https://github.com/Ramzina/Border-Officer/assets/136939704/b97bf877-8e3b-455f-afe4-8cb57879e7ff)](https://discord.gg/3PhGf6yHuS)
+Join the support server on discord!
+
+[![image](https://github.com/Ramzina/Border-Officer/assets/136939704/b97bf877-8e3b-455f-afe4-8cb57879e7ff)](https://discord.gg/3PhGf6yHuS)
 
 # Clone the repo
 
