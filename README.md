@@ -4,9 +4,7 @@ General use discord bot for all of your quirky needs.
 
 ### Join the support server
 
-Join the support server on discord!
-
-[![](https://discord.com/api/guilds/1124430040067747942/embed.png)](https://discord.gg/3PhGf6yHuS)
+[Join the support server on discord!](https://discord.gg/3PhGf6yHuS)
 
 # Clone the repo
 
