@@ -4,22 +4,25 @@ General use discord bot for all of your quirky needs.
 
 ### Join the support server
 
+[![](https://discord.com/api/guilds/1124430040067747942/embed.png)](https://discord.gg/3PhGf6yHuS)
+
+
 [Join the support server on discord!](https://discord.gg/3PhGf6yHuS)
 
 # Clone the repo
 
-```
+```bash
 git clone https://github.com/Ramzina/Border-Officer.git
 ```
 
 # [Requirements](https://github.com/Ramzina/Border-Officer/blob/main/requirements.txt)
 
 Run:
-```
+```bash
 pip install -r requirements.txt
 ```
 Or:
-```
+```bash
 python -m pip install -r requirements.txt
 ```
 
