@@ -1,14 +1,15 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import Button,button, View
 import random
 from TOD.dare import dare
 from TOD.truth import truth
+from typing import Literal
 from discord.app_commands import AppCommandError
 from discord import Color
 from datetime import datetime
 import aiosqlite
-
 
 class Community(commands.Cog):
     def __init__(self, bot):
@@ -86,22 +87,21 @@ class Community(commands.Cog):
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        await interaction.followup.send(embed=discord.Embed(title='**Create poll**',description=f'> Creating poll.',color=Color.yellow()), ephemeral=True)
-        
-        ops = [f'1️⃣ {option1}\n',f'2️⃣ {option2}\n']
-        if option3 != None:
-            ops.append(f'3️⃣ {option3}\n')
-        if option4 != None:
-            ops.append(f'4️⃣ {option4}\n')
-        
         poll = discord.Embed(
-            title=f"**{description}**",
-            description=f'>>> {" ".join(ops)}',
+            title="! __POLL__ !",
+            description="\n" + description,
+            timestamp=datetime.utcnow(),
             color=Color.from_rgb(27, 152, 250),
         )
+        poll.add_field(name="1)", value=option1, inline=True)
+        poll.add_field(name="2)", value=option2, inline=True)
+        if option3 != None:
+            poll.add_field(name="3)", value=option3, inline=True)
+        if option4 != None:
+            poll.add_field(name="4)", value=option4, inline=True)
 
         msg = await channel.send(embed=poll, content="||@everyone||")
-        await interaction.edit_original_response(embed=discord.Embed(title='**Create poll**', description=f'> Poll created',color=Color.green()))
+        await interaction.followup.send("Created poll!")
 
         await msg.add_reaction("1️⃣")
         await msg.add_reaction("2️⃣")
@@ -109,7 +109,6 @@ class Community(commands.Cog):
             await msg.add_reaction("3️⃣")
         if option4 != None:
             await msg.add_reaction("4️⃣")
-                               
 
 
 ####################################################################################################################################
@@ -235,8 +234,8 @@ class Community(commands.Cog):
         await interaction.response.defer(ephemeral=True, thinking=True)
         print("[Truth] has just been executed")
         embed = discord.Embed(
-            title="**Truth**",
-            description=f"\n> First choice: {random.choice(truth)}\n> Second choice: {random.choice(truth)}\n*Choose wisely*",
+            title="! **• Truth •** !",
+            description=f"\n- First choice: {random.choice(truth)}\n- Second choice: {random.choice(truth)}\n*Choose wisely*",
             timestamp=datetime.utcnow(),
             color=Color.from_rgb(27, 152, 250),
         )
@@ -260,11 +259,11 @@ class Community(commands.Cog):
         print("[Dare] has just been executed")
 
         embed = discord.Embed(
-            title="**Dare**",
-            description=f"> First choice: {random.choice(dare)}\n> Second choice: {random.choice(dare)}\n*Choose wisely*",
+            title="! **• Dare •** !",
+            description=f"- First choice: {random.choice(dare)}\n- Second choice: {random.choice(dare)}\n*Choose wisely*",
             timestamp=datetime.utcnow(),
-            color=Color.from_rgb(27, 152, 250))
-        embed.set_footer(text=f"You better do it!")
+            color=Color.from_rgb(27, 152, 250),
+        ),embed.set_footer(text=f"You better do it!")
 
         await interaction.followup.send(
             embed=embed.set_thumbnail(url=interaction.user.avatar.url)
@@ -279,7 +278,179 @@ class Community(commands.Cog):
 
 
 ####################################################################################################################################
-#################################################################################################################################### TRUTH OR DARE END
+#################################################################################################################################### TRUTH OR DARE END GIVEAWAY BEGIN
 ####################################################################################################################################
+
+#    @app_commands.command(name='giveaway', description='Creates a giveaway!')
+ #   @app_commands.default_permissions(administrator=True)
+  #  async def create_giveaway(self, interaction:discord.Interaction,title:str,description:str,winnings:str, time:Literal['10m', '20m', '30m', '1h', '6h', '12h']):
+   #     await interaction.response.defer(ephemeral=True)
+    #    global time2
+     #   time2 = time
+      #  global meeswage
+       # meeswage = await interaction.followup.send(embed=discord.Embed(title=f'# **{title}**', description=f'{description}\n \n> Time: {time}\n> Users joined: {users_joined}'),view=Join())
+
+
+
+#class Join(View):
+ #   def __init__(self):
+  #      super().__init__(timeout=None)
+   # 
+    #@button(label='Join giveaway', style=discord.ButtonStyle.blurple, custom_id='persistent:joingiveaway', emoji='🎉')
+    #async def joingiveaway(self, interaction:discord.Interaction, button:Button):
+     #   await interaction.response.defer(ephemeral=True)
+
+      #  msg = await interaction.followup.send(embed=discord.Embed(title='**Joining giveaway**', description='> You are being added to the giveaway!', color=Color.yellow()), ephemeral=True)
+
+       # giveaway_users.append(interaction.user.id)
+        #print(giveaway_users)
+       # print(users_joined)
+        #await meeswage.edit(embed=discord.Embed(description=f'{Community.create_giveaway.description}\n \n> Time: {time2}\n> Users joined: {users_joined}'))
+
+        #await msg.edit(embed=discord.Embed(title='**Giveaway joined**', description='> You were added to the giveaway!', color=Color.green()))
+
+
+####################################################################################################################################
+#################################################################################################################################### GIVEAWAY END TAGS BEGIN
+####################################################################################################################################
+
+
+    @app_commands.command(name='tag-create', description='Creates a tag to be used in the current guild.')
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.describe(tag_name='The name of the tag you are creating.', tag_info='The info of the tag you are creating.')
+    async def create_tag(self, interaction:discord.Interaction, tag_name:str, tag_info:str):
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        await interaction.followup.send(embed=discord.Embed(title="**Creating tag...**", description=f"\n> Tag name: {tag_name}\n> Tag info: {tag_info}", color=Color.yellow()),ephemeral=True)
+
+        db = await aiosqlite.connect("tags.db")
+
+        await db.execute("""CREATE TABLE IF NOT EXISTS tags(guild_name, guild_id, tag_name, tag_info)""")
+
+        cur = await db.execute("""SELECT * FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
+        res = await cur.fetchone()
+        if res is not None:
+            cur = await db.execute("""SELECT tag_name FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
+            res = await cur.fetchall()
+
+            for name in res:
+                if name[0].lower() == tag_name[0].lower():
+                    await interaction.edit_original_response(embed=discord.Embed(title='**Tag error**', description="> Error: `Tag already exists`", color=Color.red()))
+                    return
+
+        await db.execute("""INSERT INTO tags(guild_name, guild_id, tag_name, tag_info) VALUES (?,?,?,?)""", (interaction.guild.name, interaction.guild.id, tag_name.lower(), tag_info, ))
+        await db.commit()
+
+        await interaction.edit_original_response(embed=discord.Embed(title='**Created tag!**', description=f'> Tag name: {tag_name}\n> Tag info: {tag_info}', color=Color.green()))
+    
+
+
+    @app_commands.command(name='tag-edit', description='Edits a tag that is already in the database.')
+    @app_commands.default_permissions(administrator=True)
+    async def edit_tag(self, interaction:discord.Interaction, tag_name:str, new_tag_name:str=None, new_tag_info:str=None):
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        await interaction.followup.send(embed=discord.Embed(title="**Editing tag...**", description=f"\n> Tag name: {tag_name}", color=Color.yellow()),ephemeral=True)
+
+        db = await aiosqlite.connect("tags.db")
+
+        await db.execute("""CREATE TABLE IF NOT EXISTS tags(guild_name, guild_id, tag_name, tag_info)""")
+
+        cur = await db.execute("""SELECT * FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
+        res = await cur.fetchone()
+
+        if res is None:
+            await interaction.edit_original_response(embed=discord.Embed(title='**Tag error**', description='> Error: `No tags found`', color=Color.red()))
+            return
+        
+        if new_tag_info is None and new_tag_name is None:
+            await interaction.edit_original_response(embed=discord.Embed(title='**Tag error**', description='> Error: `You must update at least the tag name or info`.', color=Color.red()))
+            return
+        if new_tag_info is not None:
+            await db.execute("""UPDATE tags SET tag_info = ? WHERE tag_name = ? AND guild_id = ?""", (new_tag_info.lower(), tag_name.lower(), interaction.guild.id, ))
+            await db.commit()
+            print("num2")
+        if new_tag_name is not None:
+            await db.execute("""UPDATE tags SET tag_name = ? WHERE tag_name = ? AND guild_id = ?""", (new_tag_name.lower(), tag_name.lower(), interaction.guild.id, ))
+            await db.commit()
+            print("num1")
+
+
+        await interaction.edit_original_response(embed=discord.Embed(title='**Edited tag!**', description=f'> Tag name: {new_tag_name}\n> Tag info: {new_tag_info}', color=Color.green()))
+    
+
+##### TAG EDIT
+
+
+    @app_commands.command(name='tags', description='Gives lists all tags in the database.')
+    async def list_tags(self, interaction:discord.Interaction):
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        db = await aiosqlite.connect("tags.db")
+
+        cur = await db.execute("""SELECT tag_name FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
+
+        ress = await cur.fetchall()
+        res = tuple(ress)
+        print(res)
+
+        if res is None:
+            await interaction.followup.send(embed=discord.Embed(title='**Tag error**', description="> Error: `No tags found`", color=Color.red()), ephemeral=True)
+            return
+
+        await interaction.followup.send(embed=discord.Embed(title=f'**Tags for {interaction.guild.name}**', description='\n'.join(f"> /tag `{name[0]}`" for name in res), color=Color.blurple()))
+
+    @app_commands.command(name='tag-delete', description='Deletes a tag from the database.')
+    @app_commands.describe(tag_name='The name of the tag you want to delete.')
+    async def delete_tag(self,interaction:discord.Interaction, tag_name:str):
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        await interaction.followup.send(embed=discord.Embed(title="**Deleting tag...**", description=f"\n> Tag name: {tag_name}", color=Color.yellow()),ephemeral=True)
+
+        db = await aiosqlite.connect("tags.db")
+
+        cur = await db.execute("""SELECT tag_name FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
+
+        res = await cur.fetchall()
+
+        if res is None:
+            await interaction.edit_original_response(embed=discord.Embed(title='**Tag error**', description="> Error: `No tags found`", color=Color.red()))
+            return
+        for name in res:
+            if tag_name.lower() == name[0].lower():
+
+                await db.execute("""DELETE FROM tags WHERE tag_name = ?""", (tag_name.lower(), ))
+                await db.commit()
+
+                await interaction.edit_original_response(embed=discord.Embed(title=f'**Tag deleted**', description=f'> Deleted tag: {tag_name}', color=Color.green()))
+                return
+            
+            await interaction.edit_original_response(embed=discord.Embed(title='**Tag error**', description=f'> Error: `Tag "{tag_name}" not found.`', color=Color.red()))
+
+    @app_commands.command(name='tag', description='Fetches a tag from the database.')
+    @app_commands.describe(tag_name='The name of the tag you are fetching.')
+    async def fetch_tag(self, interaction:discord.Interaction, tag_name:str, private:bool=False):
+        await interaction.response.defer(ephemeral=private, thinking=True)
+
+        db = await aiosqlite.connect("tags.db")
+
+        cur = await db.execute("""SELECT tag_name FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
+
+        res = await cur.fetchall()
+
+        if res is None:
+            await interaction.followup.send(embed=discord.Embed(title='**Tag error**', description="> Error: `No tags found`", color=Color.red()), ephemeral=True)
+            return
+        for name in res:
+            if tag_name.lower() == name[0].lower():
+                cur = await db.execute("""SELECT tag_info FROM tags WHERE tag_name = ?""", (tag_name.lower(), ))
+
+                res = await cur.fetchone()
+                await interaction.followup.send(embed=discord.Embed(title=f'{name[0].capitalize()}', description=f'{res[0]}', color=Color.blurple()),ephemeral=private)
+                return
+            
+            await interaction.followup.send(embed=discord.Embed(title='**Tag error**', description=f'> Error: `Tag "{tag_name}" not found.`', color=Color.red()), ephemeral=True)
+
+
 async def setup(bot):
     await bot.add_cog(Community(bot))
