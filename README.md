@@ -27,12 +27,13 @@ python -m pip install -r requirements.txt
 ```
 
 # Setup
-
+ ## If you have any issues create an issue ticket in the support server or on Github
 To make Border officer function in your server how you would expect, there are a couple things you need to do.
 
 1) In systemconfig.py you will need to change "PUT YOUR TOKEN HERE" to the token of your discord bot surrounded by speechmarks. (e.g TOKEN = "Your token here") This can be found on [Discord's developer portal.](https://discord.com/developers/applications)
 
-2) Once you have run the bot with your token and it has started with no errors, you will need to run a couple setup commands. These commands include /logs, /welcome, /setupblacklist
-Note these are important and a lot of the bots commands rely on them, yet you should only need to run them once.
+2) Once you have run the bot with your token and it has started with no errors, you will need to run a couple setup commands. These commands include /sync and wait for all commands to sync properly and then wait a couple minutes and then run /logs, /setupblacklist.
+ 
+### Note these are important and a lot of the bots commands rely on them, yet you should only need to run them once.
 
 3) You are all set! Have fun with Border officer and make sure to give him enough food to keep him working correctly :D
