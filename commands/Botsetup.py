@@ -9,40 +9,7 @@ from typing import Optional
 
 class Setup(commands.Cog):
 	def __init__(self, bot):
-		self.bot = bot
-
-	@app_commands.command(name='welcome', description='Sets the welcome message channel.')
-	@app_commands.default_permissions(administrator=True)
-	async def welcome(self, interaction:discord.Interaction, channel:discord.TextChannel):
-			print('[Welcome] has just been executed!')
-			await interaction.response.defer(ephemeral=True, thinking=True)
-
-
-			db = await aiosqlite.connect("config.db")
-			await db.execute("CREATE TABLE IF NOT EXISTS welcome(guild_name STRING, guild_id INTEGER, channel_id INTEGER, toggle STRING)")
-		
-			cur = await db.execute("SELECT * FROM welcome WHERE guild_id = ?", (interaction.guild.id, ))
-			row = await cur.fetchone()
-			if row is None:
-
-					await cur.execute("""
-								INSERT INTO welcome VALUES
-								(?, ?, ?, ?)
-								""", (interaction.guild.name, interaction.guild.id, channel.id, 'True', ))
-					
-					await db.commit()
-		
-					await interaction.followup.send(f'{interaction.user.mention}, <#{channel.id}> has been set as the welcome channel for this guild.')
-
-			else:
-					await cur.execute("""
-								UPDATE welcome
-								SET channel_id = ?
-								WHERE guild_id = ?
-								""", (channel.id, interaction.guild.id, ))
-
-					await db.commit()	
-					await interaction.followup.send(f'{interaction.user.mention}, <#{channel.id}> has been set as the welcome channel for this guild.')			
+		self.bot = bot	
 
 	@app_commands.command(name='logs', description='Sets the logs channel.')
 	@app_commands.default_permissions(administrator=True)
@@ -113,11 +80,10 @@ class Setup(commands.Cog):
 			if jail_chat is not None:
 				await jail_chat.send(
 					embed=discord.Embed(
-					title="! **JAIL** !",
-					description=f"{interaction.user.mention}, has set this channel as the jail channel!",
-					timestamp=datetime.utcnow(),
-					color=Color.from_rgb(27, 152, 250)
-					).set_thumbnail(url=interaction.user.avatar.url)
+					title="**Jail**",
+					description=f"> This channel was set as the jail channel.",
+					color=Color.green()
+					)
 				)
 
 		else:
@@ -127,23 +93,25 @@ class Setup(commands.Cog):
 
 			for channel in interaction.guild.channels:
 
-				if channel == appeal_channel or channel == jail_chat:
-					await channel.set_permissions(banned_role, view_channel=True)
+				if channel == appeal_channel:
+					await channel.set_permissions(banned_role, view_channel=True, send_messages=False)
+					await channel.set_permissions(interaction.guild.default_role, view_channel=False)
+				elif channel == jail_chat:
+					await channel.set_permissions(banned_role, view_channel=True, send_messages =True)
 					await channel.set_permissions(interaction.guild.default_role, view_channel=False)
 				else: 
-					await channel.set_permissions(banned_role, view_channel=False)
+					await channel.set_permissions(banned_role, view_channel=False, send_messages=False)
 
 			if jail_chat is not None:		
 				await jail_chat.send(
 					embed=discord.Embed(
-					title="! **JAIL** !",
-					description=f"{interaction.user.mention}, has set this channel as the jail channel!",
-					timestamp=datetime.utcnow(),
-					color=Color.from_rgb(27, 152, 250)
-					).set_thumbnail(url=interaction.user.avatar.url)
+					title="**Jail**",
+					description=f"> This channel was set as the jail channel.",
+					color=Color.green()
+					)
 				)
 	
-	@app_commands.command(name='togglewelcome', description='Toggles welcome messages.')
+	@app_commands.command(name='welcome-messages', description='Toggles welcome messages.')
 	@app_commands.default_permissions(administrator=True)
 	async def togglewelcome(self, interaction:discord.Interaction, toggle:bool):
 		print('[Togglewelcome] has just been executed!')
@@ -156,14 +124,17 @@ class Setup(commands.Cog):
 		cur = await db.execute("""SELECT * FROM welcome WHERE guild_id = ?""", (interaction.guild.id, ))
 		row = cur.fetchone()
 		if row is None:
-			await interaction.followup.send(f'{interaction.user.mention}, to run this command you need to run /welcome.')
-			return
 
-		await db.execute("""
-							UPDATE welcome
-							SET toggle = ?
+			await db.execute("""
+							INSERT INTO welcome VALUES
+		    				guild_name = ?
+		    				guild_id = ?
+							toggle = ?
 							WHERE guild_id = ?
-							""", (str(toggle), interaction.guild.id, ))
+							""", (interaction.guild.name, interaction.guild.id, str(toggle), ))
+		else:
+			await db.execute("""UPDATE welcome
+		    				SET toggle = ? WHERE guild_id = ?""", (str(toggle), interaction.guild.id))
 		await db.commit()
 		await interaction.followup.send(f'{interaction.user.mention}, welcome messages have been set to {toggle}')
 
