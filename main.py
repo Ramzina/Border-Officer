@@ -4,8 +4,10 @@ import time
 from datetime import datetime
 from discord.ext import commands
 from discord import Color
+from discord import File
 from discord.ext.commands import Bot
 import discord
+from easy_pil import Editor, load_image_async, Font
 from discord import ui
 import asyncio
 import pkgutil
@@ -36,7 +38,7 @@ async def on_member_join(member):
 
 	db = await aiosqlite.connect("config.db")
 	await db.execute(
-		"""CREATE TABLE IF NOT EXISTS welcome(guild_name STRING, guild_id INTEGER, channel_id INTEGER, toggle STRING)"""
+		"""CREATE TABLE IF NOT EXISTS welcome(guild_name STRING, guild_id INTEGER, toggle STRING)"""
 	)
 
 	cur = await db.execute("SELECT * FROM welcome WHERE guild_id = ?", (guild.id,))
@@ -45,12 +47,11 @@ async def on_member_join(member):
 		res = await cur.execute(
 			"""
 							INSERT INTO welcome VALUES
-							(?, ?, ?, ?)
+							(?, ?, ?)
 							""",
 			(
 				guild.name,
 				guild.id,
-				None,
 				"False",
 			),
 		)
@@ -63,37 +64,57 @@ async def on_member_join(member):
 	toggle = await res.fetchone()
 
 	if toggle[0] == "True":
-		res = await cur.execute(
-			f"""SELECT channel_id FROM welcome WHERE guild_id = {guild.id}"""
-		)
-		channel = await res.fetchone()
 
-		embed = discord.Embed(
-			title="! ** • __JOIN__ • ** !",
-			description=f"- {member.mention} has joined {guild.name}!\n- Member count: {guild.member_count}",
-			timestamp=datetime.utcnow(),
-			color=Color.from_rgb(27, 152, 250),
-		)
-		embed.set_footer(text='Border hopping hispanic')
+		background = Editor("pic2.jpg")
+		try:
+			profile_image = await load_image_async(str(member.avatar.url))
+		except AttributeError:
+			profile_image = await load_image_async("https://cdn.discordapp.com/embed/avatars/1.png")
 
-		chan = bot.get_channel(channel[0])
-		await chan.send(embed=embed.set_thumbnail(url=member.avatar.url))
+		profile = Editor(profile_image).resize((150,150)).circle_image()
+		poppins = Font.poppins(size=50, variant="bold")
 
-	cur = await db.execute("""SELECT role_id FROM joinroles WHERE guild_id = ?""", (member.guild.id, ))
+		poppins_small = Font.poppins(size=20, variant="light")
 
-	role = await cur.fetchone()
+		background.paste(profile, (325, 90))
+		background.ellipse((325, 90), 150, 150, outline="white",stroke_width=5)
 
-	if role is None:
-		return    
+		background.text((400, 260), f"Welcome to {guild.name}", color="white", font=poppins, align="center")
+		background.text((400, 325), f"{member.name}", color="white", font=poppins_small, align="center")
 
-	join_role = guild.get_role(role[0]) 
-	cur = await db.execute("""SELECT toggle FROM joinroles WHERE guild_id = ?""", (member.guild.id, ))
-	tog = await cur.fetchone()
-	if tog[0] != 'True':
-		return
-	else:
-		await member.add_roles(join_role)
-	return
+		file = File(fp=background.image_bytes, filename="pic2.jpg")
+
+#		embed = discord.Embed(
+#			title="! ** • __JOIN__ • ** !",
+#			description=f"- {member.mention} has joined {guild.name}!\n- Member count: {guild.member_count}",
+#			timestamp=datetime.utcnow(),
+#			color=Color.from_rgb(27, 152, 250),
+#		)
+#		embed.set_footer(text='Border hopping hispanic')
+
+		chan = guild.system_channel
+		#await chan.send(embed=embed.set_thumbnail(url=member.avatar.url))
+		await chan.send(content=f'Welcome {member.mention} | Member count {guild.member_count}', file=file)
+
+	await db.execute("""CREATE TABLE IF NOT EXISTS joinroles(guild_name STRING, guild_id, role_id, toggle STRING)""")
+
+	cur = await db.execute("""SELECT * FROM joinroles WHERE guild_id = ?""", (guild.id, ))
+	res = await cur.fetchone()
+	if res is not None:
+
+		cur = await db.execute("""SELECT role_id FROM joinroles WHERE guild_id = ?""", (member.guild.id, ))
+
+		role = await cur.fetchone()
+
+		if role is not None:
+ 
+
+			join_role = guild.get_role(role[0]) 
+			cur = await db.execute("""SELECT toggle FROM joinroles WHERE guild_id = ?""", (member.guild.id, ))
+			tog = await cur.fetchone()
+			if tog[0] == 'True':
+				await member.add_roles(join_role)
+		
 
 
 @bot.event
@@ -102,7 +123,7 @@ async def on_member_remove(member: discord.Member):
 
 	db = await aiosqlite.connect("config.db")
 	await db.execute(
-		"""CREATE TABLE IF NOT EXISTS welcome(guild_name STRING, guild_id INTEGER, channel_id INTEGER, toggle STRING)"""
+		"""CREATE TABLE IF NOT EXISTS welcome(guild_name STRING, guild_id INTEGER, toggle STRING)"""
 	)
 
 	cur = await db.execute("SELECT * FROM welcome WHERE guild_id = ?", (guild.id,))
@@ -111,13 +132,12 @@ async def on_member_remove(member: discord.Member):
 		res = await cur.execute(
 			"""
 							INSERT INTO welcome VALUES
-							(?, ?, ?, ?)
+							(?, ?, ?)
 							""",
 			(
 				guild.name,
 				guild.id,
-				None,
-				"False",
+				"True",
 			),
 		)
 
@@ -129,23 +149,37 @@ async def on_member_remove(member: discord.Member):
 	toggle = await res.fetchone()
 
 	if toggle[0] == "True":
-		res = await cur.execute(
-			f"""SELECT channel_id FROM welcome WHERE guild_id = {guild.id}"""
-		)
-		channel = await res.fetchone()
 
-		join = bot.get_channel(channel[0])
+		background = Editor("pic2.jpg")
+		try:
+			profile_image = await load_image_async(str(member.avatar.url))
+		except AttributeError:
+			profile_image = await load_image_async("https://cdn.discordapp.com/embed/avatars/1.png")
 
-		embed = discord.Embed(
-			title="! ** • __LEAVE__ • ** !",
-			description=f"- {member.mention} has left {guild.name}!\n- Member count: {guild.member_count}",
-			timestamp=datetime.utcnow(),
-			color=Color.from_rgb(27, 152, 250),
-		)
-		embed.set_footer(text='Border hopping hispanic')
+		profile = Editor(profile_image).resize((150,150)).circle_image()
+		poppins = Font.poppins(size=50, variant="bold")
 
-		await join.send(embed=embed.set_thumbnail(url=member.avatar.url))     
+		poppins_small = Font.poppins(size=20, variant="light")
 
+		background.paste(profile, (325, 90))
+		background.ellipse((325, 90), 150, 150, outline="white",stroke_width=5)
+
+		background.text((400, 260), f"We will not miss you", color="white", font=poppins, align="center")
+		background.text((400, 325), f"{member.name}", color="white", font=poppins_small, align="center")
+
+		file = File(fp=background.image_bytes, filename="pic2.jpg")
+
+#		embed = discord.Embed(
+#			title="! ** • __JOIN__ • ** !",
+#			description=f"- {member.mention} has joined {guild.name}!\n- Member count: {guild.member_count}",
+#			timestamp=datetime.utcnow(),
+#			color=Color.from_rgb(27, 152, 250),
+#		)
+#		embed.set_footer(text='Border hopping hispanic')
+
+		chan = guild.system_channel
+		#await chan.send(embed=embed.set_thumbnail(url=member.avatar.url))
+		await chan.send(content=f'Goodbye {member.mention} | Member count {guild.member_count}', file=file)
 		return
 
 
@@ -375,5 +409,4 @@ async def main():
 
 
 asyncio.run(main())
-token = os.environ.get("TOKEN")
-bot.run(token)
+bot.run("MTEyNDQ0MDAxNTgyNTU1MTUxMg.Gl93Y3.rm35IwIzH6Licy9UCUKL-JiHu6kfxH6rQeaRvM")
