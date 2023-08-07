@@ -12,6 +12,7 @@ from discord import ui
 import asyncio
 import pkgutil
 import aiosqlite
+from systemconfig import TOKEN
 from commands.Ticketing import TrashOpenAndTranscriptButton, CloseButton,CreateButton
 from discord import app_commands
 from discord.app_commands import AppCommandError
@@ -397,7 +398,7 @@ async def load():
 
 	loaded = []
 
-	for filename in os.listdir("./commands"):
+	for filename in os.listdir("commands"):
 		if filename.endswith(".py"):
 			await bot.load_extension(f"commands.{filename[:-3]}")
 			loaded.append(f"{filename[:-3].capitalize()}")
@@ -409,4 +410,4 @@ async def main():
 
 
 asyncio.run(main())
-bot.run("MTEyNDQ0MDAxNTgyNTU1MTUxMg.Gl93Y3.rm35IwIzH6Licy9UCUKL-JiHu6kfxH6rQeaRvM")
+bot.run(TOKEN)
