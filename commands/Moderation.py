@@ -443,14 +443,14 @@ class Moderation(commands.Cog):
     @app_commands.describe(amount='The amount of bulk messages to delete.', private='If the purge message should be visible for others.')
     async def purge(self, interaction: discord.Interaction, amount: int = 5, private:bool=False) -> None:
         print("[Purge] has just been executed!")
-        await interaction.response.defer(ephemeral=private, thinking=True)
+        await interaction.response.defer(ephemeral=private)
 
         floor = 2
         ceiling = 50
     
        
         if amount >= floor and amount <= ceiling:
-            await interaction.channel.purge(limit=amount)
+            await interaction.channel.purge(limit=amount+1)
             await interaction.followup.send(embed=discord.Embed(
                 title='**Purge**',
                 description=f"> Deleted: {amount} messages", color=Color.green()))
@@ -830,7 +830,7 @@ class Moderation(commands.Cog):
         row = await cur.fetchone()
         if row is None:
             await cur.execute(
-                """INSERT INTO logs VALUES(?,?,?,?)""",
+                """INSERT INTO logs VALUES(?,?,?)""",
                 (interaction.guild.name, interaction.guild.id, None),
             )
             await db.commit()
