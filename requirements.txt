@@ -5,4 +5,5 @@ aiosqlite
 datetime
 asyncio
 os
+easy-pil
 random
