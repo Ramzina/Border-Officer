@@ -511,9 +511,7 @@ class Moderation(commands.Cog):
         channel = await res.fetchone()
         logs = channel[0] 
 
-        if member.top_role.permissions.administrator == False:
-
-                print('Got past hierarchy checks') 
+        if not member.top_role.permissions.administrator: 
                 cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (interaction.guild.id, ))
                 roleid = await cur.fetchone()
                 if roleid is None:
@@ -933,6 +931,87 @@ class Moderation(commands.Cog):
 ####################################################################################################################################
 #################################################################################################################################### KYS END, PING START
 ####################################################################################################################################
+
+    @app_commands.command(name='lockdown', description='Locks the selected channel.')
+    @app_commands.default_permissions(manage_channels=True)
+    async def lockdown(self, interaction:discord.Interaction, channel:discord.TextChannel=None):
+        await interaction.response.defer()
+
+        if channel==None:
+            channel = interaction.channel
+
+        db = await aiosqlite.connect("config.db")
+
+        await db.execute("""CREATE TABLE IF NOT EXISTS lockdown(guild_name STRING, guild_id INTEGER, locked_role INTEGER)""")
+
+
+        cur = await db.execute("""SELECT locked_role FROM lockdown WHERE guild_id = ?""", (interaction.guild.id, ))
+        role_id = await cur.fetchone()
+
+        if role_id is None:
+
+            x2 = channel.permissions_for(interaction.guild.default_role)
+
+            if x2.send_messages:
+                await channel.set_permissions(interaction.guild.default_role, send_messages = False, create_public_threads=False, create_private_threads=False)
+                await interaction.followup.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {interaction.user.mention}', color=Color.green()))
+                return
+            else:
+                await interaction.followup.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
+                return
+
+        if role_id is not None:
+
+            role = interaction.guild.get_role(role_id[0])
+            x = channel.permissions_for(role)
+
+            if x.send_messages:
+                await channel.set_permissions(role, send_messages = False, create_public_threads=False, create_private_threads=False)
+                await interaction.followup.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {interaction.user.mention}', color=Color.green()))
+            else:
+                await interaction.followup.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
+
+
+    @app_commands.command(name='unlock', description='Locks the selected channel.')
+    @app_commands.default_permissions(manage_channels=True)
+    async def unlock(self, interaction:discord.Interaction, channel:discord.TextChannel=None):
+        await interaction.response.defer()
+
+        if channel==None:
+            channel = interaction.channel
+
+        db = await aiosqlite.connect("config.db")
+
+        await db.execute("""CREATE TABLE IF NOT EXISTS lockdown(guild_name STRING, guild_id INTEGER, locked_role INTEGER)""")
+
+        cur = await db.execute("""SELECT locked_role FROM lockdown WHERE guild_id = ?""", (interaction.guild.id, ))
+        role_id = await cur.fetchone()
+
+        if role_id is None:
+
+            x2 = channel.permissions_for(interaction.guild.default_role)
+
+            if not x2.send_messages:
+                await channel.set_permissions(interaction.guild.default_role, send_messages = True)
+                await interaction.followup.send(embed=discord.Embed(title='**Unlocked**', description=f'> Unlocked channel: <#{channel.id}>\n> Unlocked by: {interaction.user.mention}', color=Color.green()))
+                return
+            else:
+                await interaction.followup.send(embed=discord.Embed(title='**Unlock error**', description=f'> Error: <#{channel.id}> `is not locked for <&@{role_id}>`', color=Color.red()))
+
+        else:
+
+            role = interaction.guild.get_role(role_id[0])
+            x = channel.permissions_for(role)
+
+            if not x.send_messages:            
+                await channel.set_permissions(role, send_messages = True)
+                await interaction.followup.send(embed=discord.Embed(title='**Unlocked**', description=f'> Unlocked channel: <#{channel.id}>\n> Unlocked by: {interaction.user.mention}', color=Color.green()))
+                return            
+            else:
+                await interaction.followup.send(embed=discord.Embed(title='**Unlock error**', description=f'> Error: <#{channel.id}> `is not locked for <&@{role_id}>`', color=Color.red()))
+
+
+
 
 async def setup(bot):
     await bot.add_cog(Moderation(bot))
