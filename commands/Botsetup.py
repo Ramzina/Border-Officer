@@ -11,6 +11,45 @@ class Setup(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot	
 
+	@app_commands.command(name='setup-lockdown', description='Sets up the lockdown command.')
+	@app_commands.default_permissions(manage_channels=True)
+	@app_commands.describe(role='The role that gets affected when using /lockdown')
+	async def setuplockdown(self, interaction:discord.Interaction, role:discord.Role):
+		await interaction.response.defer(ephemeral=True)
+
+		db= await aiosqlite.connect("config.db")
+
+		await db.execute("""CREATE TABLE IF NOT EXISTS lockdown(guild_name STRING, guild_id INTEGER, locked_role INTEGER)""")
+
+		cur = await db.execute("""SELECT locked_role FROM blacklisted WHERE guild_id = ?""", (interaction.guild.id, ))
+
+		res = await cur.fetchone()
+
+		if res is None:
+			await db.execute("""INSERT INTO blacklisted(guild_name, guild_id, locked_role) VALUES (?,?,?)""", (interaction.guild.name, interaction.guild.id, role.id, ))
+			await db.commit()
+
+			await interaction.followup.send(embed=
+											discord.Embed(
+				
+												title='**Lockdown role set**',
+												description=f'> Lockdown role: <&@{role.id}>\n> Set by: {interaction.user.mention}',color=Color.green(),
+											))
+			
+
+		else:
+			await db.execute("""UPDATE blacklisted SET locked_role = ? WHERE guild_id = ?""", (role.id, interaction.guild.id, ))
+			await db.commit()
+
+			await interaction.followup.send(embed=
+											discord.Embed(
+				
+												title='**Lockdown role set**',
+												description=f'> Lockdown role: <&@{role.id}>\n> Set by: {interaction.user.mention}',color=Color.green(),
+											))
+			
+
+
 	@app_commands.command(name='logs', description='Sets the logs channel.')
 	@app_commands.default_permissions(administrator=True)
 	async def logs(self, interaction:discord.Interaction, channel:discord.TextChannel):
@@ -127,14 +166,14 @@ class Setup(commands.Cog):
 
 			await db.execute("""
 							INSERT INTO welcome VALUES
-		    				guild_name = ?
-		    				guild_id = ?
+							guild_name = ?
+							guild_id = ?
 							toggle = ?
 							WHERE guild_id = ?
 							""", (interaction.guild.name, interaction.guild.id, str(toggle), ))
 		else:
 			await db.execute("""UPDATE welcome
-		    				SET toggle = ? WHERE guild_id = ?""", (str(toggle), interaction.guild.id))
+							SET toggle = ? WHERE guild_id = ?""", (str(toggle), interaction.guild.id))
 		await db.commit()
 		await interaction.followup.send(f'{interaction.user.mention}, welcome messages have been set to {toggle}')
 
