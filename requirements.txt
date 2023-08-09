@@ -1,9 +1,6 @@
 discord
 python-weather
-time
 aiosqlite
 datetime
 asyncio
-os
 easy-pil
-random
