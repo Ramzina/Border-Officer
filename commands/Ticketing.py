@@ -247,16 +247,21 @@ class TrashOpenAndTranscriptButton(View):
 
         await interaction.followup.send('Sending transcript...')
 
-        db = await aiosqlite.connect("config.db")
-        cur = await db.execute("""SELECT * FROM logs WHERE guild_id=?""", (interaction.guild.id, ))
+        
 
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.channel.send(f"To setup {self.bot.user}\'s commands properly, run /help and choose the BotSetup section")
-            return
+
+        db = await aiosqlite.connect("config.db")
+
+        await db.execute("""CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)""")
+
         cur = await db.execute("""SELECT channel_id FROM logs WHERE guild_id=?""", (interaction.guild.id, ))
 
-        logs = await cur.fetchone()
+        res = await cur.fetchone()
+        if id is None:
+            await interaction.channel.send(f"Run /logs to set transcript channel.")
+            return
+
+        logs = await res.fetchone()
 
         chan = discord.utils.get(interaction.guild.text_channels, id=logs[0])
 
