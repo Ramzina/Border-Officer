@@ -23,13 +23,13 @@ class Setup(commands.Cog):
 		res = await cur.fetchone()
 
 		if res is None:
-			await db.execute("""INSERT INTO counting(guild_name,count_channel ,guild_id, number) VALUES (?,?,?,?)""", (interaction.guild.name, counting_channel.id,interaction.guild.id, 0, ))
+			await db.execute("""INSERT INTO counting(guild_name,count_channel ,guild_id, number) VALUES (?,?,?,?)""", (interaction.guild.name, counting_channel.id,interaction.guild.id, 1, ))
 			await db.commit()
-
-			cout = int(res[0])
+            
+			cout = int(1)
 
 			await interaction.followup.send(embed=discord.Embed(title='**Setup count**', description=f'> Setup count successfully', color=Color.green()), ephemeral=True)
-			await counting_channel.send(embed=discord.Embed(title='**Count channel set**', description=f'> Counting channel set successfully!\n> Count: {cout}'))
+			await counting_channel.send(embed=discord.Embed(title='**Count channel set**', description=f'> Counting channel set successfully!\n> Next number: {cout}', color=Color.blurple()))
 		else:
 			await db.execute("""UPDATE counting SET count_channel = ? WHERE guild_id = ?""", (counting_channel.id,interaction.guild.id, ))
 			await db.commit()
@@ -37,7 +37,7 @@ class Setup(commands.Cog):
 			cout = int(res[0])
 
 			await interaction.followup.send(embed=discord.Embed(title='**Setup count**', description=f'> Setup count successfully\n> Count: {cout}', color=Color.green()), ephemeral=True)
-			await counting_channel.send(embed=discord.Embed(title='**Count channel set**', description=f'> Counting channel set successfully!\n> Count: {cout}'))
+			await counting_channel.send(embed=discord.Embed(title='**Count channel set**', description=f'> Counting channel set successfully!\n> Next number: {cout}', color=Color.blurple()))
 
 	@app_commands.command(name='setup-lockdown', description='Sets up the lockdown command.')
 	@app_commands.default_permissions(manage_channels=True)
