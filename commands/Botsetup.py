@@ -11,6 +11,34 @@ class Setup(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot	
 
+	@app_commands.command(name='setup-count', description='Sets up the counting feature on the bot.')
+	@app_commands.default_permissions(administrator=True)
+	async def count_setup(self, interaction:discord.Interaction, counting_channel:discord.TextChannel):
+		await interaction.response.defer(ephemeral=True, thinking=True)
+
+		db = await aiosqlite.connect("counting.db")
+		await db.execute("""CREATE TABLE IF NOT EXISTS counting(guild_name TEXT, guild_id INTEGER,count_channel INTEGER, number INTEGER)""")
+
+		cur = await db.execute("""SELECT number FROM counting WHERE guild_id = ?""", (interaction.guild.id, ))
+		res = await cur.fetchone()
+
+		if res is None:
+			await db.execute("""INSERT INTO counting(guild_name,count_channel ,guild_id, number) VALUES (?,?,?,?)""", (interaction.guild.name, counting_channel.id,interaction.guild.id, 0, ))
+			await db.commit()
+
+			cout = int(res[0])
+
+			await interaction.followup.send(embed=discord.Embed(title='**Setup count**', description=f'> Setup count successfully', color=Color.green()), ephemeral=True)
+			await counting_channel.send(embed=discord.Embed(title='**Count channel set**', description=f'> Counting channel set successfully!\n> Count: {cout}'))
+		else:
+			await db.execute("""UPDATE counting SET count_channel = ? WHERE guild_id = ?""", (counting_channel.id,interaction.guild.id, ))
+			await db.commit()
+
+			cout = int(res[0])
+
+			await interaction.followup.send(embed=discord.Embed(title='**Setup count**', description=f'> Setup count successfully\n> Count: {cout}', color=Color.green()), ephemeral=True)
+			await counting_channel.send(embed=discord.Embed(title='**Count channel set**', description=f'> Counting channel set successfully!\n> Count: {cout}'))
+
 	@app_commands.command(name='setup-lockdown', description='Sets up the lockdown command.')
 	@app_commands.default_permissions(manage_channels=True)
 	@app_commands.describe(role='The role that gets affected when using /lockdown')
