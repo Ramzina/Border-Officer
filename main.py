@@ -244,7 +244,9 @@ async def on_message(message):
         cur = await db.execute("""SELECT count_channel FROM counting WHERE guild_id = ?""", (message.guild.id, ))
         res = await cur.fetchone()
 
-        if message.channel.id == res[0]:
+        if res is None: return
+        
+        if message.channel.id == int(res[0]):
 
             cur = await db.execute("""SELECT number FROM counting WHERE guild_id = ?""", (message.guild.id, ))
             res = await cur.fetchone()
