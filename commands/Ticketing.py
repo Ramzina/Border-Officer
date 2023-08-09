@@ -97,6 +97,59 @@ class CreateButton(View):
         view=CloseButton())
         await interaction.followup.send(f'<#{channel.id}> created!', ephemeral=True)
 
+class CreateCustomButton(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @button(label='Create Ticket', style=discord.ButtonStyle.blurple, emoji='🎫', custom_id='ticketcustomopen')
+    async def ticket(self, interaction:discord.Interaction, button: Button):
+        await interaction.response.defer(ephemeral=True)
+        global opener
+        opener = interaction.user
+        db = await aiosqlite.connect("ticketing.db")
+
+        cur = await db.execute("""SELECT ticket_banned FROM customticketing WHERE guild_id = ?""", (interaction.guild.id, ))
+        ticket_banned_role = await cur.fetchone()
+        
+        t_banned = discord.utils.get(interaction.guild.roles, id=ticket_banned_role[0])
+        if t_banned in interaction.user.roles:
+            await interaction.followup.send(embed=discord.Embed(
+                description=f"{interaction.user.mention}, you are banned from making tickets.",
+                color=Color.red()
+            ),ephemeral=True)
+            return
+
+        cur = await db.execute("""SELECT ticket_category_id FROM customticketing WHERE guild_id = ?""", (interaction.guild.id, ))
+        Category = await cur.fetchone()
+        T_category = Category[0]
+
+        category = discord.utils.get(interaction.guild.categories, id = T_category)
+        for ch in category.text_channels:
+            if ch.topic == f"{interaction.user.id}":
+                await interaction.followup.send("You already have a ticket in {0}".format(ch.mention), ephemeral=True)
+                return
+
+        overwrites = {
+            interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False, view_channel=False),
+            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True, view_channel = True),
+            interaction.guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+        channel = await category.create_text_channel(
+            name=f"{interaction.user}s ticket",
+            topic=f'{interaction.user.id}',
+            overwrites = overwrites
+        )
+        global meeswage
+        meeswage = await channel.send(
+            embed=discord.Embed(
+            title=f"{interaction.user}'s support ticket.",
+            timestamp=datetime.utcnow(),
+            description='> Do not ping staff, they will be with you shortly.\n> Please tell us what you want us to know below.',
+            color=Color.blurple(),
+            ),
+        view=CloseButton())
+        await interaction.followup.send(f'<#{channel.id}> created!', ephemeral=True)
+
 class TrashOpenAndTranscriptButton(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -139,7 +192,10 @@ class TrashOpenAndTranscriptButton(View):
         await asyncio.sleep(1)
 
         db = await aiosqlite.connect("ticketing.db")
-        cur = await db.execute("""SELECT auto_transcript FROM ticketing WHERE guild_id = ?""", (interaction.guild.id, ))
+        try:
+            cur = await db.execute("""SELECT auto_transcript FROM ticketing WHERE guild_id = ?""", (interaction.guild.id, ))
+        except:
+            cur = await db.execute("""SELECT auto_transcript FROM customticketing WHERE guild_id = ?""", (interaction.guild.id, ))
 
         auto_transcript = await cur.fetchone()
         if auto_transcript[0] == 'True':
@@ -246,7 +302,7 @@ class Ticketing(commands.Cog):
 
     
 
-    @app_commands.command(name='tickets', description='Sets the ticket channel.')
+    @app_commands.command(name='appeal-ticket', description='Sets the ticket channel.')
     @app_commands.describe(channel='The channel the open ticket button will be in', ticket_category='The category opened tickets will be in', ticket_banned='A role that bans users from creating tickets.', auto_transcript='Automatically sends the ticket transcript to the logs channel.')
     @app_commands.default_permissions(administrator=True)
     async def createticket(self, interaction:discord.Interaction, channel:discord.TextChannel,ticket_category:discord.CategoryChannel,ticket_banned:discord.Role, auto_transcript:bool=False):
@@ -262,7 +318,7 @@ class Ticketing(commands.Cog):
             await channel.send(embed=discord.Embed(
                 title='**Blacklist Appeals**',
                 description='Click the button below to make a blacklist appeal.',color=Color.green(), 
-            ).set_footer(value='Border hopping hispanic - Ban appeals for free'),view=CreateButton())
+            ),view=CreateButton())
         else:
             await db.execute("""UPDATE ticketing SET ticket_category_id = ?, ticket_channel_id = ?,ticket_banned=? ,auto_transcript = ? WHERE guild_id = ?""", (ticket_category.id,channel.id,ticket_banned.id,str(auto_transcript), interaction.guild.id, ))
             await db.commit()
@@ -271,5 +327,33 @@ class Ticketing(commands.Cog):
                 title='**Blacklist Appeals**',
                 description='Click the button below to make a blacklist appeal.',color=Color.green()
             ),view=CreateButton())
+
+
+    @app_commands.command(name='create-ticket', description='Creates a clickable ticket in the channel command is run in.')
+    @app_commands.default_permissions(administrator=True)
+    async def createcustomticket(self, interaction:discord.Interaction,ticket_title:str, ticket_info:str, channel:discord.TextChannel,ticket_category:discord.CategoryChannel,ticket_banned:discord.Role, auto_transcript:bool=False):
+        await interaction.response.defer(ephemeral=True,thinking=True)
+        db = await aiosqlite.connect("ticketing.db")
+        await db.execute("""CREATE TABLE IF NOT EXISTS customticketing(guild_name STRING, guild_id INTEGER, ticket_category_id INTEGER, ticket_channel_id INTEGER,ticket_banned INTEGER,auto_transcript STRING)""")
+        cur = await db.execute("""SELECT * FROM customticketing WHERE guild_id = ?""", (interaction.guild.id, ))
+        row = await cur.fetchone()
+        if row is None:
+            await db.execute("""INSERT INTO customticketing(guild_name, guild_id, ticket_category_id, ticket_channel_id,ticket_banned ,auto_transcript) VALUES (?,?,?,?,?,?)""", (interaction.guild.name, interaction.guild.id, ticket_category.id, channel.id,ticket_banned.id, str(auto_transcript), ))
+            await db.commit()
+            await interaction.followup.send(f'{interaction.user.mention}, set "{ticket_category}" as ticket category <#{channel.id}> as the ticket channel and <@&{ticket_banned.id}> as the banned role!')
+            await channel.send(embed=discord.Embed(
+                title=f'**{ticket_title.capitalize()}**',
+                description=ticket_info.capitalize(),color=Color.green(), 
+            ), view=CreateCustomButton())
+        else:
+            await db.execute("""UPDATE customticketing SET ticket_category_id = ?, ticket_channel_id = ?,ticket_banned=? ,auto_transcript = ? WHERE guild_id = ?""", (ticket_category.id,channel.id,ticket_banned.id,str(auto_transcript), interaction.guild.id, ))
+            await db.commit()
+            await interaction.followup.send(f'{interaction.user.mention}, set "{ticket_category}" as ticket category, <#{channel.id}> as the ticket channel and <@&{ticket_banned.id}> as the banned role!')
+            await channel.send(embed=discord.Embed(
+                title=f'**{ticket_title.capitalize()}**',
+                description=ticket_info.capitalize(),color=Color.green(), 
+            ), view=CreateCustomButton())
+
+
 async def setup(bot):
     await bot.add_cog(Ticketing(bot))
