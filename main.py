@@ -93,9 +93,10 @@ async def on_member_join(member):
 #		)
 #		embed.set_footer(text='Border hopping hispanic')
 
-		chan = guild.system_channel
+		if guild.system_channel is not None:
+			chan = guild.system_channel
 		#await chan.send(embed=embed.set_thumbnail(url=member.avatar.url))
-		await chan.send(content=f'Welcome {member.mention} | Member count {guild.member_count}', file=file)
+			await chan.send(content=f'Welcome {member.mention} | Member count {guild.member_count}', file=file)
 
 	await db.execute("""CREATE TABLE IF NOT EXISTS joinroles(guild_name STRING, guild_id, role_id, toggle STRING)""")
 
@@ -229,6 +230,48 @@ async def commands(interaction: discord.Interaction):
 	await interaction.response.send_message(
 		embed=embed, ephemeral=True
 	)
+
+
+
+
+
+@bot.event
+async def on_message(message):
+        if message.author == bot.user: return 
+        db = await aiosqlite.connect("counting.db")
+        await db.execute("""CREATE TABLE IF NOT EXISTS counting(guild_name TEXT, guild_id INTEGER,count_channel INTEGER, number INTEGER)""")
+
+        cur = await db.execute("""SELECT count_channel FROM counting WHERE guild_id = ?""", (message.guild.id, ))
+        res = await cur.fetchone()
+
+        if message.channel.id == res[0]:
+
+            cur = await db.execute("""SELECT number FROM counting WHERE guild_id = ?""", (message.guild.id, ))
+            res = await cur.fetchone()
+
+            if res is not None:
+                cout = res[0]
+
+                text = message.content
+
+                if text.isdigit():
+                    if int(message.content) == cout:
+                        cout2 = int(cout + 1)
+
+                        await db.execute("""UPDATE counting SET number = ? WHERE guild_id = ?""", (cout2, message.guild.id, ))
+                        await db.commit()
+                        await message.add_reaction("✅")
+                    else:
+                        cout2 = 1
+                        await db.execute("""UPDATE counting SET number = ? WHERE guild_id = ?""", (cout2, message.guild.id,))
+                        await db.commit()
+                        await message.add_reaction("❌")
+                        await message.channel.send(f"{message.author.mention} ruined the count! **The next number was {cout}** The next number is 1")
+
+
+
+
+
 
 
 # @bot.event
