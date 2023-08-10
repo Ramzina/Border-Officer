@@ -39,22 +39,20 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
-            return
 
-        res = await cur.execute(
+
+        res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
 
+
+        if channel is None:
+            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            return
         
-        if interaction.user.top_role > member.top_role:
+        if interaction.user.top_role > member.top_role or member.top_role.permissions.administrator == False:
 
             if not member.bot:
                 embed = discord.Embed(
@@ -63,7 +61,6 @@ class Moderation(commands.Cog):
                     timestamp=datetime.utcnow(),
                     color=Color.red(),
                 )
-                embed.set_footer(text="Border hopping hispanic")
 
             await member.send(
                 embed=embed
@@ -79,10 +76,9 @@ class Moderation(commands.Cog):
                 title="! **• BAN •** !",
                 description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
                 timestamp=datetime.utcnow(),
-                color=Color.from_rgb(27, 152, 250),
+                color=Color.blurple(),
             )
 
-            embed2.set_footer(text="Border hopping hispanic")
 
             channel = self.bot.get_channel(logs)
 
@@ -92,7 +88,7 @@ class Moderation(commands.Cog):
                 )
         else:
             await interaction.followup.send(
-                f"{interaction.user.mention}, {member.mention} has higher perms than you.",
+                f"{interaction.user.mention}, {member.mention} is staff.",
                 ephemeral=True,
             )
          
@@ -116,19 +112,16 @@ class Moderation(commands.Cog):
             await db.execute(
                 """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
             )
-            cur = await db.execute(
-                f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-            )
-            row = await cur.fetchone()
-            if row is None:
-                await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
-                return
 
-            res = await cur.execute(
+            res = await db.execute(
                 f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
             )
             channel = await res.fetchone()
-            logs = channel[0]
+            logs = channel[0]          
+
+            if channel is None:
+                await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+                return
 
             await interaction.guild.unban(member)
             await interaction.followup.send(embed=discord.Embed(
@@ -139,7 +132,7 @@ class Moderation(commands.Cog):
                 title="! **• UNBAN •** !",
                 description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
                 timestamp=datetime.utcnow(),
-                color=Color.from_rgb(27, 152, 250),
+                color=Color.blurple(),
             )
 
             embed2.set_footer(text="Border hopping hispanic")
@@ -185,23 +178,19 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
-            return
 
-        res = await cur.execute(
+        res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
 
         logs = channel[0]
 
-        if member.top_role.permissions.administrator == False:
-            guild = interaction.guild
+        if channel is None:
+            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            return
+
+        if interaction.user.top_role > member.top_role or member.top_role.permissions.administrator == False:
 
             if member.is_timed_out() == False:
                 delta = timedelta(minutes=minutes, hours=hours, days=days)
@@ -218,7 +207,6 @@ class Moderation(commands.Cog):
                     timestamp=datetime.utcnow(),
                     color=Color.red(),
                 )
-                embed.set_footer(text="Border hopping hispanic")
 
                 await member.send(
                     embed=embed,
@@ -228,7 +216,7 @@ class Moderation(commands.Cog):
                     title="! **• MUTE •** !",
                     description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
                     timestamp=datetime.utcnow(),
-                    color=Color.from_rgb(27, 152, 250),
+                    color=Color.blurple(),
                 )
 
                 await member.move_to(None)
@@ -266,19 +254,16 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
-            return
 
-        res = await cur.execute(
+        res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
+
+        if channel is None:
+            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            return
 
         if member.is_timed_out() == True:
             await member.timeout(None)
@@ -293,10 +278,9 @@ class Moderation(commands.Cog):
                 title="! **• UNMUTE •** !",
                 description=f"- 🧍 Issuer: {interaction.user.mention}\n-🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
                 timestamp=datetime.utcnow(),
-                color=Color.from_rgb(27, 152, 250),
+                color=Color.blurple(),
             )
 
-            embed.set_footer(text="Border hopping hispanic")
             channel = self.bot.get_channel(logs)
 
             embed2 = discord.Embed(
@@ -305,7 +289,6 @@ class Moderation(commands.Cog):
                 description=f'**You were unmuted in "{interaction.guild.name}"**\n> Responsible: {interaction.user}\n ',
                 color=Color.green()
             )
-            embed2.set_footer(text="Border hopping hispanic")
 
             await member.send(
                 embed=embed2,
@@ -341,21 +324,18 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
-            return
-
-        res = await cur.execute(
+        res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
+        if channel is None:
+            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            return
 
-        if member.top_role.permissions.administrator == False:
+
+
+        if interaction.user.top_role > member.top_role or member.top_role.permissions.administrator == False:
             invite = await interaction.guild.text_channels[0].create_invite(
                     max_age=0, max_uses=1, unique=True
                 )
@@ -365,7 +345,6 @@ class Moderation(commands.Cog):
                 timestamp=datetime.utcnow(),
                 color=Color.red(),
             )
-            embed.set_footer(text="Border hopping hispanic")
 
             await member.send(
                 embed=embed,
@@ -380,10 +359,9 @@ class Moderation(commands.Cog):
                 title="! **• KICK •** !",
                 description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
                 timestamp=datetime.utcnow(),
-                color=Color.from_rgb(27, 152, 250),
+                color=Color.blurple(),
             )
 
-            embed2.set_footer(text="Border hopping hispanic")
             channel = self.bot.get_channel(logs)
 
             if logs is not None:
@@ -485,7 +463,7 @@ class Moderation(commands.Cog):
     )
     @app_commands.default_permissions(mute_members=True)
     @app_commands.describe(member='The member to blacklist.', reason='The reason for the blacklist.', private='If the blacklist message should be visible for others.')
-    async def blacklist(self, interaction: discord.Interaction, member: discord.Member, reason: str, private:bool=False) -> None:
+    async def blacklist(self, interaction: discord.Interaction, member: discord.Member, reason:str='No reason provided.', private:bool=False) -> None:
         
         print("[Blacklist] has just been executed")
         await interaction.response.defer(ephemeral=private, thinking=True)
@@ -497,19 +475,18 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
-            return
 
         res = await cur.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0] 
+
+        if channel is None:
+            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
+            return
+
+
 
         if not member.top_role.permissions.administrator: 
                 cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (interaction.guild.id, ))
@@ -530,9 +507,8 @@ class Moderation(commands.Cog):
                     embed = discord.Embed(
                         title="**Blacklisted**",
                         description=f'**You have been blacklisted on "{interaction.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {interaction.user}\n ',
-                        timestamp=datetime.utcnow(),
                         color=Color.red(),
-                    ).set_footer(text="Border hopping hispanic")
+                    )
 
                     await member.send(
                         embed=embed)
@@ -540,9 +516,8 @@ class Moderation(commands.Cog):
                     embed2 = discord.Embed(
                         title="**! • BLACKLIST • !**",
                         description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
-                        timestamp=datetime.utcnow(),
-                        color=Color.from_rgb(27, 152, 250),
-                    ).set_footer(text="Border hopping hispanic")
+                        color=Color.blurple(),
+                    )
                     await member.move_to(channel=None)
 
                     channel = self.bot.get_channel(logs)
@@ -586,13 +561,6 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
-            return
 
         res = await cur.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
@@ -600,9 +568,14 @@ class Moderation(commands.Cog):
         channel = await res.fetchone()
         logs = channel[0] 
 
-        if member.top_role.permissions.administrator == False:
 
-                print('Got past hierarchy checks') 
+        row = await cur.fetchone()
+        if row is None:
+            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
+            return
+
+        if interaction.user.top_role > member.top_role or member.top_role.permissions.administrator == False:
+
                 cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (interaction.guild.id, ))
                 roleid = await cur.fetchone()
                 if roleid is None:
@@ -624,7 +597,7 @@ class Moderation(commands.Cog):
                         description=f'**You have been blacklisted on "{interaction.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {interaction.user}\n ',
                         timestamp=datetime.utcnow(),
                         color=Color.red(),
-                    ).set_footer(text="Border hopping hispanic")
+                    )
 
                     await member.send(
                         embed=embed)
@@ -632,9 +605,8 @@ class Moderation(commands.Cog):
                     embed2 = discord.Embed(
                         title="**! • BLACKLIST • !**",
                         description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
-                        timestamp=datetime.utcnow(),
-                        color=Color.from_rgb(27, 152, 250),
-                    ).set_footer(text="Border hopping hispanic")
+                        color=Color.blurple(),
+                    )
                     await member.move_to(channel=None)
 
                     channel = self.bot.get_channel(logs)
@@ -676,25 +648,23 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'{interaction.user.mention}, to setup the blacklist command, run /setupblacklist')
-            return
 
-        res = await cur.execute(
+        res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
+
+        if channel is None:
+            await interaction.followup.send(f'{interaction.user.mention}, to setup the blacklist command, run /setupblacklist')
+            return
         
         cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (interaction.guild.id, ))
         roleid = await cur.fetchone()
         if roleid is None:
             await interaction.followup.send(f'{interaction.user.mention}, to setup the blacklist command, run /setupblacklist')
             return
+        
         role = discord.utils.get(interaction.guild.roles, id=roleid[0])
         if role in member.roles:
             await member.remove_roles(role)
@@ -707,11 +677,10 @@ class Moderation(commands.Cog):
             embed = discord.Embed(
                 title="! **• UNBLACKLIST •** !",
                 description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
-                timestamp=datetime.utcnow(),
-                color=Color.from_rgb(27, 152, 250),
+                color=Color.blurple(),
             )
 
-            embed.set_footer(text="Border hopping hispanic")
+
             channel = self.bot.get_channel(logs)
 
             embed2 = discord.Embed(
@@ -720,8 +689,6 @@ class Moderation(commands.Cog):
                 description=f'**You were unblacklisted on "{interaction.guild.name}"**\n> Responsible: {interaction.user}\n ',
                 color=Color.green()
             )
-
-            embed2.set_footer(text="Border hopping hispanic")
 
             await member.send(
                 embed=embed2,
@@ -765,19 +732,16 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
-            return
 
-        res = await cur.execute(
+        res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0] 
+
+        if channel is None:
+            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
+            return
 
         await member.edit(nick=nickname)
         await interaction.followup.send(embed=discord.Embed(
@@ -813,8 +777,6 @@ class Moderation(commands.Cog):
         self, interaction: discord.Interaction, member: discord.User, role: discord.Role, private:bool=False
     ) -> None:
         print("[Addrole] has just been executed")
-        guild = interaction.guild
-
         await interaction.response.defer(ephemeral=private, thinking=True)
 
         db = await aiosqlite.connect("config.db")
@@ -822,24 +784,19 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await cur.execute(
-                """INSERT INTO logs VALUES(?,?,?)""",
-                (interaction.guild.name, interaction.guild.id, None),
-            )
-            await db.commit()
 
-        res = await cur.execute(
+        res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
 
         role1 = interaction.guild.get_role(role.id)
+
+        if channel is None:
+            await interaction.followup.send('To setup {self.bot.user}\'s commands properly, run /help and choose the setup section', ephemeral=True)
+            return
+
         
         if role1 not in member.roles:
             await member.add_roles(role1)
@@ -850,10 +807,11 @@ class Moderation(commands.Cog):
                 title="! **• ADDROLE •** !",
                 description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🔸 Role mention: <@&{role.id}>\n- 🔸 Role: {role}",
                 timestamp=datetime.utcnow(),
-                color=Color.from_rgb(27, 152, 250),
+                color=Color.blurple(),
             )
 
-            embed2.set_footer(text="Border hopping hispanic")
+
+#################################################################################### ENEDD HERE
 
             channel = self.bot.get_channel(logs)
 
@@ -878,31 +836,25 @@ class Moderation(commands.Cog):
     ) -> None:
         print("[Removerole] has just been executed")
         await interaction.response.defer(ephemeral=private,thinking=True)
-        guild = interaction.guild
 
         db = await aiosqlite.connect("config.db")
 
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        cur = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await cur.fetchone()
-        if row is None:
-            await cur.execute(
-                """INSERT INTO logs VALUES(?,?,?,?)""",
-                (interaction.guild.name, interaction.guild.id, None),
-            )
-            await db.commit()
-
-        res = await cur.execute(
+        res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
-        channel = await res.fetchone()
+        cur = await res.fetchone()
         logs = channel[0]
         
         role1 = interaction.guild.get_role(role.id)
+
+        res = await cur.fetchone()
+        if res is None:
+            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            return
+
         if role1 in member.roles:
             await member.remove_roles(role1)
             await interaction.followup.send(embed=discord.Embed(
@@ -913,11 +865,9 @@ class Moderation(commands.Cog):
             embed2 = discord.Embed(
                 title="! **• REMOVEROLE •** !",
                 description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n 🔸 Role mention: <@&{role.id}>\n- 🔸 Role: {role}",
-                timestamp=datetime.utcnow(),
-                color=Color.from_rgb(27, 152, 250),
+                color=Color.blue(),
             )
 
-            embed2.set_footer(text="Border hopping hispanic")
 
             channel = self.bot.get_channel(logs)
 
