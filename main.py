@@ -237,38 +237,86 @@ async def commands(interaction: discord.Interaction):
 
 @bot.event
 async def on_message(message):
-        if message.author == bot.user: return 
-        db = await aiosqlite.connect("counting.db")
-        await db.execute("""CREATE TABLE IF NOT EXISTS counting(guild_name TEXT, guild_id INTEGER,count_channel INTEGER, number INTEGER)""")
+		if message.author == bot.user: return 
+		db = await aiosqlite.connect("counting.db")
+		await db.execute("""CREATE TABLE IF NOT EXISTS counting(guild_name TEXT, guild_id INTEGER,count_channel INTEGER, number INTEGER, last_user INTEGER)""")
 
-        cur = await db.execute("""SELECT count_channel FROM counting WHERE guild_id = ?""", (message.guild.id, ))
-        res = await cur.fetchone()
+		cur = await db.execute("""SELECT count_channel FROM counting WHERE guild_id = ?""", (message.guild.id, ))
+		res = await cur.fetchone()
 
-        if res is None: return
-        
-        if message.channel.id == int(res[0]):
+		if res is None: return
+		
+		if message.channel.id == int(res[0]):
 
-            cur = await db.execute("""SELECT number FROM counting WHERE guild_id = ?""", (message.guild.id, ))
-            res = await cur.fetchone()
+			cur = await db.execute("""SELECT number FROM counting WHERE guild_id = ?""", (message.guild.id, ))
+			res = await cur.fetchone()
 
-            if res is not None:
-                cout = res[0]
+			if res is not None:
+				cout = res[0]
 
-                text = message.content
+				text = message.content
 
-                if text.isdigit():
-                    if int(message.content) == cout:
-                        cout2 = int(cout + 1)
+				if text.isdigit():
 
-                        await db.execute("""UPDATE counting SET number = ? WHERE guild_id = ?""", (cout2, message.guild.id, ))
-                        await db.commit()
-                        await message.add_reaction("✅")
-                    else:
-                        cout2 = 1
-                        await db.execute("""UPDATE counting SET number = ? WHERE guild_id = ?""", (cout2, message.guild.id,))
-                        await db.commit()
-                        await message.add_reaction("❌")
-                        await message.channel.send(f"{message.author.mention} ruined the count! **The next number was {cout}** The next number is 1")
+					cur =await db.execute("""SELECT last_user FROM counting WHERE guild_id = ?""", (message.guild.id, ))
+					res = await cur.fetchone()
+					print(res[0])
+					if res[0] != 0:
+						if res[0] == message.author.id:
+
+							cur = await db.execute("""SELECT saves FROM saves WHERE guild_id = ? AND user=?""", (message.guild.id, message.author.id, ))
+							res = await cur.fetchone()
+
+							if res is not None:
+								if res[0] > 0:
+									new_saves = res[0] - 1
+
+									await db.execute("""UPDATE saves SET saves =? WHERE guild_id =? AND user=?""", (new_saves, message.guild.id, message.author.id, ))
+									await db.commit()
+
+									await message.add_reaction("❌")
+									await message.channel.send(f"Careful {message.author.mention}! **You cannot count two numbers in a row!** Next number is {cout}. You have {new_saves} saves left")
+									return
+
+							await db.execute("""UPDATE counting SET last_user = ?, number = ? WHERE guild_id = ?""", (0,1 ,message.guild.id, ))
+							await db.commit()
+
+
+							await message.add_reaction("❌")
+							await message.channel.send(f"{message.author.mention} ruined the count! **You cannot count two numbers in a row!** The next number is 1.")
+							return
+
+
+					if int(message.content) == cout:
+						cout2 = int(cout + 1)
+
+						await db.execute("""UPDATE counting SET number = ?, last_user = ? WHERE guild_id = ?""", (cout2, message.author.id, message.guild.id, ))
+						await db.commit()
+						await message.add_reaction("✅")	
+
+					else:
+							cur = await db.execute("""SELECT saves FROM saves WHERE guild_id = ? AND user=?""", (message.guild.id, message.author.id, ))
+							res = await cur.fetchone()
+
+							if res is not None:
+								if res[0] > 0:
+									new_saves = res[0] - 1
+
+									await db.execute("""UPDATE saves SET saves =? WHERE guild_id =? AND user=?""", (new_saves, message.guild.id, message.author.id, ))
+									await db.commit()
+
+									await message.add_reaction("❌")
+									await message.channel.send(f"Careful {message.author.mention}! **The next number is {cout}!** You now have {new_saves} saves left.")
+									return
+
+							cout2 = 1
+							await db.execute("""UPDATE counting SET number = ?, last_user = ? WHERE guild_id = ?""", (cout2, 0 ,message.guild.id, ))
+							await db.commit()
+							await message.add_reaction("❌")
+							await message.channel.send(f"{message.author.mention} ruined the count! **The next number was {cout}!** The next number is now 1.")
+
+
+
 
 
 
