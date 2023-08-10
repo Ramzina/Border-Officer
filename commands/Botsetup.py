@@ -17,7 +17,9 @@ class Setup(commands.Cog):
 		await interaction.response.defer(ephemeral=True, thinking=True)
 
 		db = await aiosqlite.connect("counting.db")
-		await db.execute("""CREATE TABLE IF NOT EXISTS counting(guild_name TEXT, guild_id INTEGER,count_channel INTEGER, number INTEGER)""")
+		await db.execute("""CREATE TABLE IF NOT EXISTS counting(guild_name TEXT, guild_id INTEGER,count_channel INTEGER, number INTEGER, last_user INTEGER)""")
+		await db.execute("""CREATE TABLE IF NOT EXISTS saves(guild_name TEXT, guild_id INTEGER,user INTEGER, saves INTEGER)""")
+
 
 		cur = await db.execute("""SELECT number FROM counting WHERE guild_id = ?""", (interaction.guild.id, ))
 		res = await cur.fetchone()
