@@ -7,7 +7,7 @@ General use discord bot for all of your quirky needs.
 [![](https://discord.com/api/guilds/733219077744754750/embed.png)](https://discord.gg/3PhGf6yHuS)
 
 
-[If you don't want to host the bot yourself click me for the Border-Officer invite!](https://discord.gg/3PhGf6yHuS](https://discord.com/api/oauth2/authorize?client_id=1124440015825551512&permissions=8&scope=bot%20applications.commands)
+(If you don't want to host the bot yourself click me for the Border-Officer invite!)[https://discord.gg/3PhGf6yHuS](https://discord.com/api/oauth2/authorize?client_id=1124440015825551512&permissions=8&scope=bot%20applications.commands]
 
 # Clone the repo
 
