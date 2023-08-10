@@ -32,17 +32,14 @@ class Community(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        res = await db.execute(
-            f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        row = await res.fetchone()
-        if row is None:
-            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
             
         res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
         )
         channel = await res.fetchone()
+
+        if channel is None: await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
+
         logs = channel[0]
 
 
@@ -64,7 +61,7 @@ class Community(commands.Cog):
 
     @nick.error
     async def on_nick_error(self, interaction: discord.Interaction, error):
-        await interaction.followup.send(content=str(error), ephemeral=True)
+        await interaction.followup.send(embed=discord.Embed(title='**Nick error**', description=f'> Error: {str(error)}', color=Color.red()), ephemeral=True)
 
 
 ####################################################################################################################################
@@ -101,7 +98,7 @@ class Community(commands.Cog):
             poll.add_field(name="4)", value=option4, inline=True)
 
         msg = await channel.send(embed=poll, content="||@everyone||")
-        await interaction.followup.send("Created poll!")
+        await interaction.followup.send("Poll created.")
 
         await msg.add_reaction("1️⃣")
         await msg.add_reaction("2️⃣")
@@ -119,10 +116,10 @@ class Community(commands.Cog):
         name="userinfo", description="Returns a information about the passed user."
     )
     async def userinfo(
-        self, interaction: discord.Interaction, member: discord.Member = None
+        self, interaction: discord.Interaction, member: discord.Member = None, private:bool=False
     ):
         print("[Userinfo] has just been executed.")
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=private, thinking=True)
 
         if not member:
             member = interaction.user
@@ -230,8 +227,8 @@ class Community(commands.Cog):
 
     @app_commands.command(name="truth", description="Gives you a random truth.")
     @app_commands.checks.cooldown(1, 5, key=lambda i: (i.guild_id, i.user.id))
-    async def truth(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True, thinking=True)
+    async def truth(self, interaction: discord.Interaction, private:bool=False):
+        await interaction.response.defer(ephemeral=private, thinking=True)
         print("[Truth] has just been executed")
         embed = discord.Embed(
             title="! **• Truth •** !",
@@ -327,11 +324,10 @@ class Community(commands.Cog):
 
         await db.execute("""CREATE TABLE IF NOT EXISTS tags(guild_name, guild_id, tag_name, tag_info)""")
 
-        cur = await db.execute("""SELECT * FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
-        res = await cur.fetchone()
+
+        cur = await db.execute("""SELECT tag_name FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
+        res = await cur.fetchall()
         if res is not None:
-            cur = await db.execute("""SELECT tag_name FROM tags WHERE guild_id = ?""", (interaction.guild.id, ))
-            res = await cur.fetchall()
 
             for name in res:
                 if name[0].lower() == tag_name[0].lower():
