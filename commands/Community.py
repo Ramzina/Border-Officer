@@ -448,5 +448,126 @@ class Community(commands.Cog):
             await interaction.followup.send(embed=discord.Embed(title='**Tag error**', description=f'> Error: `Tag "{tag_name}" not found.`', color=Color.red()), ephemeral=True)
 
 
+    @app_commands.command(name='give-saves', description='Gives saves for the counting feature to a user.')
+    @app_commands.default_permissions(administrator=True)
+    async def give_saves(self, interaction:discord.Interaction, member:discord.Member, saves:int, private:bool=False):
+        await interaction.response.defer(ephemeral=private, thinking=True)
+
+        db = await aiosqlite.connect('counting.db')
+        await db.execute("""CREATE TABLE IF NOT EXISTS saves(guild_name TEXT, guild_id INTEGER,user INTEGER, saves INTEGER)""")
+
+
+        cur = await db.execute("""SELECT user FROM saves WHERE guild_id = ? AND user = ?""", (interaction.guild.id, member.id, ))
+        res = cur.fetchone()
+
+        cur2 = await db.execute("""SELECT saves FROM saves WHERE guild_id = ? AND user = ?""", (interaction.guild.id, member.id, ))
+        res2 = await cur2.fetchone()
+
+        if res2[0] is not None:prev_saves = res2[0]
+        else: prev_saves = None
+        new_saves = prev_saves + saves
+
+        if res is None:
+
+            await db.execute("""INSERT INTO saves (guild_name, guild_id, user, saves) VALUES(?,?,?,?)""", (interaction.guild.name, interaction.guild.id, member.id, new_saves,  ))
+            await db.commit()
+        if res is not None:
+
+            await db.execute("""UPDATE saves SET saves = ? WHERE guild_id =? AND user = ?""", (new_saves, interaction.guild.id, member.id, ))
+            await db.commit()
+        await interaction.followup.send(embed=discord.Embed(title='**Give saves**', description=f'> User: {member.mention}\n> Old saves: {prev_saves}\n New saves: {new_saves}', color=Color.green()))
+            
+
+
+
+    @app_commands.command(name='set-saves', description='Sets saves for the counting feature for a user')
+    @app_commands.default_permissions(administrator=True)
+    async def set_saves(self, interaction:discord.Interaction, member:discord.Member, saves:int, private:bool=False):
+        await interaction.response.defer(ephemeral=private, thinking=True)
+
+        db = await aiosqlite.connect('counting.db')
+        await db.execute("""CREATE TABLE IF NOT EXISTS saves(guild_name TEXT, guild_id INTEGER,user INTEGER, saves INTEGER)""")
+
+
+        cur = await db.execute("""SELECT user FROM saves WHERE guild_id = ? AND user = ?""", (interaction.guild.id, member.id, ))
+        res = await cur.fetchone()
+
+        cur2 = await db.execute("""SELECT saves FROM saves WHERE guild_id = ? AND user = ?""", (interaction.guild.id, member.id, ))
+        res2 = await cur2.fetchone()
+
+        if res2 is not None: 
+            prev_saves = res2[0]
+        else: prev_saves = None
+
+        new_saves = saves
+
+        if res is None:
+
+            await db.execute("""INSERT INTO saves (guild_name, guild_id, user, saves) VALUES(?,?,?,?)""", (interaction.guild.name, interaction.guild.id, member.id, new_saves,  ))
+            await db.commit()
+        if res is not None:
+
+            await db.execute("""UPDATE saves SET saves = ? WHERE guild_id =? AND user = ?""", (new_saves, interaction.guild.id, member.id, ))
+            await db.commit()
+        await interaction.followup.send(embed=discord.Embed(title='**Set saves**', description=f'> User: {member.mention}\n> Old saves: {prev_saves}\n New saves: {saves}', color=Color.green()))
+            
+
+    @app_commands.command(name='remove-saves', description='Gives saves for the counting feature to a user.')
+    @app_commands.default_permissions(administrator=True)
+    async def remove_saves(self, interaction:discord.Interaction, member:discord.Member, saves:int, private:bool=False):
+        await interaction.response.defer(ephemeral=private, thinking=True)
+
+        db = await aiosqlite.connect('counting.db')
+        await db.execute("""CREATE TABLE IF NOT EXISTS saves(guild_name TEXT, guild_id INTEGER,user INTEGER, saves INTEGER)""")
+
+
+        cur = await db.execute("""SELECT user FROM saves WHERE guild_id = ? AND user = ?""", (interaction.guild.id, member.id, ))
+        res = await cur.fetchone()
+
+        cur2 = await db.execute("""SELECT saves FROM saves WHERE guild_id = ? AND user = ?""", (interaction.guild.id, member.id, ))
+        res2 = await cur2.fetchone()
+
+        if res2 is not None: prev_saves = res2[0]
+        else: prev_saves = None
+        new_saves = prev_saves - saves
+
+        if new_saves < 0:
+            new_saves = 0
+
+        if res is None:
+
+            await db.execute("""INSERT INTO saves (guild_name, guild_id, user, saves) VALUES(?,?,?,?)""", (interaction.guild.name, interaction.guild.id, member.id, new_saves,  ))
+            await db.commit()
+        if res is not None:
+
+            await db.execute("""UPDATE saves SET saves = ? WHERE guild_id =? AND user = ?""", (new_saves, interaction.guild.id, member.id, ))
+            await db.commit()
+        await interaction.followup.send(embed=discord.Embed(title='**Remove saves**', description=f'> User: {member.mention}\n> Old saves: {prev_saves}\n New saves: {new_saves}', color=Color.green()))
+            
+    @app_commands.command(name='saves', description='Tells you your amount of saves.')
+    @app_commands.default_permissions(administrator=True)
+    async def give_saves(self, interaction:discord.Interaction, member:discord.Member=None, private:bool=False):
+        await interaction.response.defer(ephemeral=private, thinking=True)
+
+        if member == None:
+            member = interaction.user
+
+        db = await aiosqlite.connect('counting.db')
+        await db.execute("""CREATE TABLE IF NOT EXISTS saves(guild_name TEXT, guild_id INTEGER,user INTEGER, saves INTEGER)""")
+
+
+        cur = await db.execute("""SELECT user, saves FROM saves WHERE guild_id = ? AND user = ?""", (interaction.guild.id, member.id, ))
+        res = await cur.fetchone()
+
+        if res is None:
+            await interaction.followup.send(embed=discord.Embed(title='**Saves error**', description='> Error: You were not found in the database.'),ephemeral=True)
+            return
+        if res is not None:
+            await interaction.followup.send(embed=discord.Embed(title='**Saves**', description=f'> Saves: {res[1]}'))
+            return
+
+ 
+            
+
 async def setup(bot):
     await bot.add_cog(Community(bot))
