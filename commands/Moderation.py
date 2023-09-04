@@ -19,20 +19,15 @@ class Moderation(commands.Cog):
 #################################################################################################################################### BAN START
 ####################################################################################################################################
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="ban",
         description="Bans the passed user.",
     )
-    @app_commands.default_permissions(ban_members=True)
-    @app_commands.describe(member='The member to ban.', reason='The reason for the ban.', private='If the ban message should be private.')
-    async def ban(
-        self, interaction: discord.Interaction, member: discord.User, reason: str = None, private:bool=False
-   ):
-        
+    @commands.has_permissions(ban_members=True)
+    async def ban(self, ctx, member: discord.User, * ,reason: str = None):
+
         print("[Ban] has just been executed")
-        await interaction.response.defer(ephemeral=private, thinking=True)
-
-
+        await ctx.defer()
 
         db = await aiosqlite.connect("config.db")
 
@@ -42,39 +37,41 @@ class Moderation(commands.Cog):
 
 
         res = await db.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
 
 
         if channel is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: Logs are not setup. Use /logs', color=Color.red()))
             return
-        
-        if interaction.user.top_role > member.top_role or member.top_role.permissions.administrator == False:
+        if member not in ctx.guild.members:
+            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: {member.mention} is not in the guild. Use /hackban', color=Color.red()))
+            return
+        if ctx.author.top_role > member.top_role or member.top_role.permissions.administrator == False:
 
-            if not member.bot:
+            try:
                 embed = discord.Embed(
                     title="**Banned**",
-                    description=f'**You were banned from "{interaction.guild.name}"**\n> Reason: "{reason}"\n> Responsible: {interaction.user.mention}',
-                    timestamp=datetime.utcnow(),
+                    description=f'**You were banned from "{ctx.guild.name}"**\n> Reason: "{reason}"\n> Responsible: {ctx.author.mention}',
                     color=Color.red(),
                 )
-
-            await member.send(
-                embed=embed
-            )
-
-            await interaction.guild.ban(member, reason=reason)
-            await interaction.followup.send(embed=discord.Embed(
+            except:
+                pass
+            
+            if member in ctx.guild.members:
+                await member.send(embed=embed)
+                
+            await ctx.guild.ban(member=member, reason=reason)
+            await ctx.send(embed=discord.Embed(
                 title=f'**Ban**',
                 description=f'> Banned: {member.mention}\n> Reason: "{reason}"',color=Color.red()),
             )
 
             embed2 = discord.Embed(
                 title="! **• BAN •** !",
-                description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
                 timestamp=datetime.utcnow(),
                 color=Color.blurple(),
             )
@@ -84,28 +81,79 @@ class Moderation(commands.Cog):
 
 
             await channel.send(
-                embed=embed2.set_thumbnail(url=interaction.user.avatar.url)
+                embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
                 )
         else:
-            await interaction.followup.send(
-                f"{interaction.user.mention}, {member.mention} is staff.",
-                ephemeral=True,
+            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: You cannot ban {member.mention}.', color=Color.red()))
+    @ban.error
+    async def on_ban_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Ban error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+    @commands.hybrid_command(
+        name="hackban",
+        description="Bans the passed user.",
+    )
+    @commands.has_permissions(ban_members=True)
+    async def hackban(
+        self, ctx, member: discord.User, *,reason: str = None
+   ):
+        
+        print("[Hackban] has just been executed")
+        await ctx.defer()
+
+        db = await aiosqlite.connect("config.db")
+
+        await db.execute(
+            """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
+        )
+
+
+        res = await db.execute(
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
+        )
+        channel = await res.fetchone()
+        logs = channel[0]
+
+
+        if channel is None:
+            await ctx.send(embed=discord.Embed(title='**Hackban error**', description=f'> Error: Logs are not setup. Use /logs', color=Color.red()))
+            return
+        
+        if member not in ctx.guild.members:
+                
+            await ctx.guild.ban(user=member, reason=reason)
+            await ctx.send(embed=discord.Embed(
+                title=f'**Ban**',
+                description=f'> Banned: {member.mention}\n> Reason: "{reason}"',color=Color.red()),
             )
+
+            embed2 = discord.Embed(
+                title="! **• BAN •** !",
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
+                timestamp=datetime.utcnow(),
+                color=Color.blurple(),
+            )
+
+
+            channel = self.bot.get_channel(logs)
+
+
+            await channel.send(
+                embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
+                )
+        else:
+            await ctx.send(embed=discord.Embed(title='**Hackban error**', description=f'> Error: {member.mention} is in the guild.', color=Color.red()))
          
 
-    @ban.error
-    async def on_ban_error(
-        self, interaction: discord.Interaction, error: AppCommandError
-    ):
-        if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.response.send_message(content=str(error), ephemeral=True)
+    @hackban.error
+    async def on_hackban_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Hackban error**', description=f'> Error: {str(error)}', color=Color.red()))
 
-    @app_commands.command(name='unban', description="Unbans the passed user.")
-    @app_commands.default_permissions(ban_members=True, manage_roles=True)
-    @app_commands.describe(member='The member to unban.', private='If the unban message should be private.')
-    async def unban(self, interaction: discord.Interaction, member: discord.User, private:bool=False):
+    @commands.hybrid_command(name='unban', description="Unbans the passed user.")
+    @commands.has_permissions(ban_members=True)
+    async def unban(self, ctx, member: discord.User):
             print("[Unban] has just been executed")
-            await interaction.response.defer(ephemeral=private,thinking=True)
+            await ctx.defer()
 
             db = await aiosqlite.connect("config.db")
 
@@ -114,64 +162,58 @@ class Moderation(commands.Cog):
             )
 
             res = await db.execute(
-                f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+                f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
             )
             channel = await res.fetchone()
             logs = channel[0]          
 
             if channel is None:
-                await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+                await ctx.send(embed=discord.Embed(title='**Unban error**', description=f'> Error: Logs are not setup. Use /logs', color=Color.red()))
                 return
 
-            await interaction.guild.unban(member)
-            await interaction.followup.send(embed=discord.Embed(
+            await ctx.guild.unban(member)
+            await ctx.send(embed=discord.Embed(
                 title='**Unban**',
                 description=f"> Unbanned: {member.mention}",color=Color.green()),
             )
+
             embed2 = discord.Embed(
                 title="! **• UNBAN •** !",
-                description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
                 timestamp=datetime.utcnow(),
                 color=Color.blurple(),
             )
 
-            embed2.set_footer(text="Border hopping hispanic")
             channel = self.bot.get_channel(logs)
 
             if logs is not None:
                 await channel.send(
-                    embed=embed2.set_thumbnail(url=interaction.user.avatar.url)
+                    embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
                 )
 
     @unban.error
-    async def on_unban_error(
-        self, interaction: discord.Interaction, error: AppCommandError
-    ):
-        if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.response.send_message(embed=discord.Embed(title='**Cooldown**',description=str(error), color=Color.red()), ephemeral=True)
-        if isinstance(error, commands.UnknownBan):
-            await interaction.response.send_message(embed=discord.Embed(title='**Ban error**', description=f'> The passed member is not banned', color=Color.red()), ephemeral=True)
+    async def on_unban_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Unban error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### BAN END, MUTE START
 ####################################################################################################################################
 
 
-    @app_commands.command(name="mute", description="Tempmutes the passed user.")
-    @app_commands.default_permissions(mute_members=True)
-    @app_commands.describe(member='The member to mute.', minutes='The amount of minutes to mute the member for.', hours='The amount of hours to mute the member for.', days='The amount of days to mute the member for.', reason='The reason for the mute.', private='If the mute message should be private.')
+    @commands.hybrid_command(name="mute", description="Tempmutes the passed user.")
+    @commands.has_permissions(moderate_members=True)
     async def mute(
         self,
-        interaction: discord.Interaction,
+        ctx,
         member: discord.Member,
         minutes: int = 10,
         hours: int = 0,
         days: int = 0,
+        *,
         reason: str = None,
-        private:bool=False,
-    ) -> None:
+    ):
         print("[Mute] has just been executed")
-        await interaction.response.defer(ephemeral=private, thinking=True)
+        await ctx.defer()
 
         db = await aiosqlite.connect("config.db")
 
@@ -180,41 +222,42 @@ class Moderation(commands.Cog):
         )
 
         res = await db.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
         channel = await res.fetchone()
 
         logs = channel[0]
 
         if channel is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error, logs are not setup. Use /logs', color=Color.red()))
             return
 
-        if interaction.user.top_role > member.top_role or member.top_role.permissions.administrator == False:
+        if ctx.author.top_role > member.top_role or member.top_role.permissions.administrator == False:
 
             if member.is_timed_out() == False:
                 delta = timedelta(minutes=minutes, hours=hours, days=days)
 
                 await member.timeout(delta, reason=reason)
-                await interaction.followup.send(embed=discord.Embed(
+                await ctx.send(embed=discord.Embed(
                     title='**Mute**',
                     description=f'> Muted: {member.mention}\n> Reason: "{reason}"',color=Color.red()),
                 )
-
+                
                 embed = discord.Embed(
                     title="**Muted**",
-                    description=f'**You were muted in "{interaction.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {interaction.user.mention}\n> Duration: {minutes}m, {hours}h, {days}d',
-                    timestamp=datetime.utcnow(),
+                    description=f'**You were muted in "{ctx.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {ctx.author}\n> Duration: {minutes}m, {hours}h, {days}d',
                     color=Color.red(),
                 )
-
-                await member.send(
+                try:
+                    await member.send(
                     embed=embed,
-                )
+                    )
+                except:
+                    pass
 
                 embed2 = discord.Embed(
                     title="! **• MUTE •** !",
-                    description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
+                    description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
                     timestamp=datetime.utcnow(),
                     color=Color.blurple(),
                 )
@@ -225,29 +268,26 @@ class Moderation(commands.Cog):
                     channel = self.bot.get_channel(logs)
 
                     await channel.send(
-                        embed=embed2.set_thumbnail(url=interaction.user.avatar.url)
+                        embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
                     )
 
             else:
-                await interaction.followup.send(
-                    f"{interaction.user.mention}, {member.mention} is already muted!",
-                    ephemeral=True,
-                )
+                await ctx.send(embed=discord.Embed(title='**Mute error**', description=f'> Error: {member.mention} is already muted.', color=Color.red()))
 
         else:
-            await interaction.followup.send(
-                f"{interaction.user.mention}, {member.mention} is staff!",
-                ephemeral=True,
-            )
+            await ctx.send(embed=discord.Embed(title='**Mute error**', description=f'> Error: You cannot mute {member.mention}.', color=Color.red()))
+    @mute.error
+    async def on_mute_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Mute error**', description=f'> Error: {str(error)}', color=Color.red()))
 
-    @app_commands.command(
+
+    @commands.hybrid_command(
         name="unmute", description="Unmutes the passed user."
     )
-    @app_commands.default_permissions(mute_members=True)
-    @app_commands.describe(member='The member to unmute.', private='If the unmute message should be private.')
-    async def unmute(self, interaction: discord.Interaction, member: discord.Member, private:bool=False):
+    @commands.has_permissions(moderate_members=True)
+    async def unmute(self, ctx, member: discord.Member):
         print("[Unmute] has just been executed")
-        await interaction.response.defer(ephemeral=private,thinking=True)
+        await ctx.defer()
 
         db = await aiosqlite.connect("config.db")
 
@@ -256,28 +296,27 @@ class Moderation(commands.Cog):
         )
 
         res = await db.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
 
         if channel is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            await ctx.send(embed=discord.Embed(title='**Unmute error**', description=f'> Error: Logs not setup. Run /logs', color=Color.red()))
             return
 
         if member.is_timed_out() == True:
             await member.timeout(None)
 
             
-            await interaction.followup.send(embed=discord.Embed(
-                title='**Unmute**',
-                description=f"> Unmuted: {member.mention}",color=Color.green()),
-            )
+            await ctx.send(embed=discord.Embed(
+                    title='**Unmute**',
+                    description=f"> Unmuted: {member.mention}",color=Color.green()),
+                )
 
             embed = discord.Embed(
                 title="! **• UNMUTE •** !",
-                description=f"- 🧍 Issuer: {interaction.user.mention}\n-🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
-                timestamp=datetime.utcnow(),
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n-🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
                 color=Color.blurple(),
             )
 
@@ -285,39 +324,39 @@ class Moderation(commands.Cog):
 
             embed2 = discord.Embed(
                 title="**Unmuted**",
-                timestamp=datetime.utcnow(),
-                description=f'**You were unmuted in "{interaction.guild.name}"**\n> Responsible: {interaction.user}\n ',
+                description=f'**You were unmuted in "{ctx.guild.name}"**\n> Responsible: {ctx.author}\n ',
                 color=Color.green()
             )
-
-            await member.send(
+            try:
+                await member.send(
                 embed=embed2,
-            )
+                )
+            except:
+                pass
 
 
             await channel.send(
-                embed=embed.set_thumbnail(url=(interaction.user.avatar.url))
+                embed=embed.set_thumbnail(url=(ctx.author.avatar.url))
             )
         else:
-            await interaction.followup.send(
-                f"{interaction.user.mention}, {member} Is not muted.", ephemeral=True
-            )
+            await ctx.send(embed=discord.Embed(title='**Unmute error**', description=f'> Error: {member.mention} is not muted.', color=Color.red()))
+    @unmute.error
+    async def on_unmute_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Unmute error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### MUTE END, KICK START
 ####################################################################################################################################
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="kick", description="Kicks the passed user."
     )
-    @app_commands.default_permissions(kick_members=True)
-    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.guild_id, i.user.id))
-    @app_commands.describe(member='The member to kick.', reason='The reason for the kick.', private='If the kick message should be visible for others.')
+    @commands.has_permissions(kick_members=True)
     async def kick(
-        self, interaction: discord.Interaction, member: discord.Member, reason: str=None, private:bool=False
-    ) -> None:
+        self, ctx, member: discord.Member,* ,reason: str=None,
+    ):
         print("[Kick] has just been executed")
-        await interaction.response.defer(ephemeral=private,thinking=True)
+        await ctx.defer()
 
         db = await aiosqlite.connect("config.db")
 
@@ -325,31 +364,30 @@ class Moderation(commands.Cog):
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
         res = await db.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
         if channel is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            await ctx.send(embed=discord.Embed(title='**Kick error**', description=f'> Error: Blacklist is not setup. Use /setupblacklist', color=Color.red()))
             return
 
 
 
-        if interaction.user.top_role > member.top_role or member.top_role.permissions.administrator == False:
-            invite = await interaction.guild.text_channels[0].create_invite(
-                    max_age=0, max_uses=1, unique=True
-                )
+        if ctx.author.top_role > member.top_role or member.top_role.permissions.administrator == False:
+            invite = await ctx.guild.text_channels[0].create_invite(max_age=0, max_uses=1, unique=True)
 
             embed = discord.Embed(title='**Kicked**',
-                description=f'**You were kicked from "{interaction.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {interaction.user}\n> \n> [Rejoin {interaction.guild.name}]({invite})',
-                timestamp=datetime.utcnow(),
+                description=f'**You were kicked from "{ctx.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {ctx.author}\n> \n> [Rejoin {ctx.guild.name}]({invite})',
                 color=Color.red(),
             )
-
-            await member.send(
-                embed=embed,
-            )
-            await interaction.followup.send(embed=discord.Embed(
+            try:
+                await member.send(
+                    embed=embed,
+                )
+            except:
+                pass
+            await ctx.send(embed=discord.Embed(
                 title='**Kick**',
                 description=f'> Kicked: {member.mention}\n> Reason: "{reason}"',color=Color.red()),
             )
@@ -357,8 +395,7 @@ class Moderation(commands.Cog):
 
             embed2 = discord.Embed(
                 title="! **• KICK •** !",
-                description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
-                timestamp=datetime.utcnow(),
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
                 color=Color.blurple(),
             )
 
@@ -366,107 +403,91 @@ class Moderation(commands.Cog):
 
             if logs is not None:
                 await channel.send(
-                    embed=embed2.set_thumbnail(url=interaction.user.avatar.url)
+                    embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
                 )
         else:
-            await interaction.response.send_message(
-                f"{interaction.user.mention}, {member} is staff!", ephemeral=True
-            )
+            await ctx.send(embed=discord.Embed(title='**Kick error**', description=f'> Error: You cannot kick {member.mention}.', color=Color.red()))
 
     @kick.error
-    async def on_kick_error(
-        self, interaction: discord.Interaction, error: AppCommandError
-    ):
-        if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.response.send_message(content=str(error), ephemeral=True)
+    async def on_kick_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Kick error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### KICK END, CLEAR START
 ####################################################################################################################################
 
-    @app_commands.command(name="clear", description="Clears messages from the passed user")
-    @app_commands.default_permissions(manage_messages=True)
-    @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
-    @app_commands.describe(member='The member to clear messages from', amount='The range of messages to delete', private='If the clear message should be visible for others.')
+    @commands.hybrid_command(name="clear", description="Clears messages from the passed user")
+    @commands.has_permissions(manage_messages=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def clear(
-        self, interaction: discord.Interaction, member: discord.User, amount: int, private:bool=False
+        self, ctx, member: discord.User, amount: int
     ):
         print("[Clear] has just been executed")
-        await interaction.response.defer(ephemeral=private, thinking=True)
+        await ctx.defer()
 
 
         def check_author(m):
             return m.author.id == member.id
         
 
-        await interaction.channel.purge(limit=amount, check=check_author)
-        await interaction.followup.send(embed=discord.Embed(title='**Clear**', description=f'> Messages cleared: `{amount}`',color=Color.green()))
+        await ctx.channel.purge(limit=amount, check=check_author)
+        await ctx.send(embed=discord.Embed(title='**Clear**', description=f'> Messages cleared: `{amount}`',color=Color.green()),delete_after=5.0)
 
     @clear.error
-    async def on_clear_error(
-        self, interaction: discord.Interaction, error: AppCommandError
-    ):
-        if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.response.send_message(content=str(error), ephemeral=True)
+    async def on_clear_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Clear error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### CLEAR END, PURGE START
 ####################################################################################################################################
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="purge", description="Deletes the passed amount of messages."
     )
-    @app_commands.default_permissions(manage_messages=True)
-    @app_commands.checks.cooldown(1, 15, key=lambda i: (i.guild_id, i.user.id))
-    @app_commands.describe(amount='The amount of bulk messages to delete.', private='If the purge message should be visible for others.')
-    async def purge(self, interaction: discord.Interaction, amount: int = 5, private:bool=False) -> None:
+    @commands.has_permissions(manage_messages=True)
+    @commands.cooldown(1, 15, commands.BucketType.user)
+    async def purge(self, ctx, amount: int = 5):
         print("[Purge] has just been executed!")
-        await interaction.response.defer(ephemeral=private)
+        await ctx.defer()
 
         floor = 2
         ceiling = 50
     
        
         if amount >= floor and amount <= ceiling:
-            await interaction.channel.purge(limit=amount+1)
-            await interaction.followup.send(embed=discord.Embed(
+            await ctx.channel.purge(limit=amount+1)
+            await ctx.send(embed=discord.Embed(
                 title='**Purge**',
-                description=f"> Deleted: {amount} messages", color=Color.green()))
+                description=f"> Deleted: {amount} messages", color=Color.green()),delete_after=5.0)
            
 
         elif amount < floor:
-            await interaction.followup.send(embed=discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 title='**Purge**',
-                description=f"> Error: Amount is less than `{floor}`\n> Usage example: `/purge amount:5`",color=Color.red()),
-            ephemeral=True)
+                description=f"> Error: Amount is less than `{floor}`\n> Usage example: `/purge 5`",color=Color.red()),delte_after=5.0)
             
 
         elif amount > ceiling:
-            await interaction.followup.send(embed=discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 title='**Purge**',
-                description=f"> Error: Amount must be less than `{ceiling}`\n> Usage example: `/purge amount:5`",color=Color.red()),
-            ephemeral=True)
+                description=f"> Error: Amount must be less than `{ceiling}`\n> Usage example: `/purge 5`",color=Color.red()),delete_after=5.0)
 
     @purge.error
-    async def on_purge_error(
-        self, interaction: discord.Interaction, error: AppCommandError
-    ):
-        if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.response.send_message(content=str(error), ephemeral=True)
+    async def on_purge_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Purge error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### PURGE END, BLACKLIST START
 ####################################################################################################################################
-
-    @app_commands.command(
+            
+    @commands.hybrid_command(
         name="blacklist", description="Blacklists the passed user."
     )
-    @app_commands.default_permissions(mute_members=True)
-    @app_commands.describe(member='The member to blacklist.', reason='The reason for the blacklist.', private='If the blacklist message should be visible for others.')
-    async def blacklist(self, interaction: discord.Interaction, member: discord.Member, reason:str='No reason provided.', private:bool=False) -> None:
+    @commands.has_permissions(moderate_members=True)
+    async def blacklist(self, ctx, member: discord.Member, *,reason: str):
         
         print("[Blacklist] has just been executed")
-        await interaction.response.defer(ephemeral=private, thinking=True)
+        await ctx.defer()
 
 
         db = await aiosqlite.connect("config.db")
@@ -476,172 +497,77 @@ class Moderation(commands.Cog):
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
 
-        res = await cur.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+        res = await db.execute(
+            f"""SELECT channel_id FROM logs WHERE guild_id = ?""", (ctx.guild.id, )
         )
         channel = await res.fetchone()
-        logs = channel[0] 
 
         if channel is None:
-            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
+            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: Blacklist is not setup. Use /setupblacklist', color=Color.red()))
             return
 
-
-
-        if not member.top_role.permissions.administrator: 
-                cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (interaction.guild.id, ))
-                roleid = await cur.fetchone()
-                if roleid is None:
-                    await interaction.followup.send(f'{interaction.user.mention}, to setup the blacklist command, run /setupblacklist')
-                    return
-
-                role = interaction.guild.get_role(roleid[0])
-                if role not in member.roles:
-
-                    await member.add_roles(role)
-                    
-                    await interaction.followup.send(embed=discord.Embed(
-                        title='**Blacklist**',
-                        description=f'> Blacklisted: {member.mention}\n> Reason: "{reason}"',color=Color.red()))
-
-                    embed = discord.Embed(
-                        title="**Blacklisted**",
-                        description=f'**You have been blacklisted on "{interaction.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {interaction.user}\n ',
-                        color=Color.red(),
-                    )
-
-                    await member.send(
-                        embed=embed)
-                    
-                    embed2 = discord.Embed(
-                        title="**! • BLACKLIST • !**",
-                        description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
-                        color=Color.blurple(),
-                    )
-                    await member.move_to(channel=None)
-
-                    channel = self.bot.get_channel(logs)
-
-                    if logs is not None: 
-                        await channel.send(
-                            embed=embed2.set_thumbnail(url=interaction.user.avatar.url))
-                        
-                else:
-                    await interaction.followup.send(
-                    f"{interaction.user.mention}, {member.mention} is already Blacklisted.",
-                    ephemeral=True)
-
-        else:
-            await interaction.followup.send(
-                f"{interaction.user.mention}, {member.mention} is staff!",
-                ephemeral=True)
-
-    @blacklist.error
-    async def on_blacklist_error(
-        self, interaction: discord.Interaction, error: AppCommandError
-    ):
-        if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.followup.send(content=str(error), ephemeral=True)
-            
-
-    @app_commands.command(
-        name="blacklist", description="Blacklists the passed user."
-    )
-    @app_commands.default_permissions(mute_members=True)
-    @app_commands.describe(member='The member to blacklist.', reason='The reason for the blacklist.', private='If the blacklist message should be private.')
-    async def blacklist(self, interaction: discord.Interaction, member: discord.Member, reason: str, private:bool=False) -> None:
-        
-        print("[Blacklist] has just been executed")
-        await interaction.response.defer(ephemeral=private, thinking=True)
-
-
-        db = await aiosqlite.connect("config.db")
-
-
-        await db.execute(
-            """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
-        )
-
-        res = await cur.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
-        )
-        channel = await res.fetchone()
         logs = channel[0] 
 
 
-        row = await cur.fetchone()
-        if row is None:
-            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
-            return
+        if ctx.author.top_role > member.top_role or member.top_role.permissions.administrator == False:
 
-        if interaction.user.top_role > member.top_role or member.top_role.permissions.administrator == False:
-
-                cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (interaction.guild.id, ))
+                cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (ctx.guild.id, ))
                 roleid = await cur.fetchone()
                 if roleid is None:
-                    await interaction.followup.send(f'{interaction.user.mention}, to setup the blacklist command, run /setupblacklist')
+                    await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: Blacklist is not setup. Use /setupblacklist', color=Color.red()))
                     return
 
-                role = interaction.guild.get_role(roleid[0])
+                role = ctx.guild.get_role(roleid[0])
                 if role not in member.roles:
 
                     await member.add_roles(role)
 
                     
-                    await interaction.followup.send(embed=discord.Embed(
+                    await ctx.send(embed=discord.Embed(
                         title='**Blacklist**',
                         description=f'> Blacklisted: {member.mention}\n> Reason: "{reason}"',color=Color.red()))
 
                     embed = discord.Embed(
                         title="**Blacklisted**",
-                        description=f'**You have been blacklisted on "{interaction.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {interaction.user}\n ',
-                        timestamp=datetime.utcnow(),
+                        description=f'**You have been blacklisted on "{ctx.guild.name}"**\n> Reason: `{reason}`\n> Responsible: {ctx.author}\n ',
                         color=Color.red(),
                     )
-
-                    await member.send(
-                        embed=embed)
+                    try:
+                        await member.send(
+                            embed=embed)
+                    except:
+                        pass
                     
                     embed2 = discord.Embed(
                         title="**! • BLACKLIST • !**",
-                        description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
+                        description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Reason: {reason}",
                         color=Color.blurple(),
                     )
                     await member.move_to(channel=None)
 
                     channel = self.bot.get_channel(logs)
 
-                    if logs is not None: 
-                        await channel.send(
-                            embed=embed2.set_thumbnail(url=interaction.user.avatar.url))
+                    await channel.send(embed=embed2.set_thumbnail(url=ctx.author.avatar.url))
                         
                 else:
-                    await interaction.followup.send(
-                    f"{interaction.user.mention}, {member.mention} is already Blacklisted.",
-                    ephemeral=True)
+                    await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: {member.mention} is already blacklisted.', color=Color.red()))
 
         else:
-            await interaction.followup.send(
-                f"{interaction.user.mention}, {member.mention} is staff!",
-                ephemeral=True)
+            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: You cannot blacklist {member.mention}.', color=Color.red()))
 
     @blacklist.error
-    async def on_blacklist_error(
-        self, interaction: discord.Interaction, error: AppCommandError
-    ):
-        if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.followup.send(content=str(error), ephemeral=True)
+    async def on_blacklist_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: {str(error)}', color=Color.red()))
             
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="unblacklist", description="Unblacklists the passed user."
     )
-    @app_commands.default_permissions(mute_members=True)
-    @app_commands.describe(member='The member to unblacklist.', private='If the unblacklist message should be private.')
-    async def unblacklist(self, interaction: discord.Interaction, member: discord.User, private:bool=False):
+    @commands.has_permissions(moderate_members=True)
+    async def unblacklist(self, ctx, member: discord.Member):
         print("[Unblacklist] has just been executed")
 
-        await interaction.response.defer(ephemeral=private,thinking=True)
+        await ctx.defer()
         db = await aiosqlite.connect("config.db")
 
      
@@ -650,33 +576,33 @@ class Moderation(commands.Cog):
         )
 
         res = await db.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
 
         if channel is None:
-            await interaction.followup.send(f'{interaction.user.mention}, to setup the blacklist command, run /setupblacklist')
+            await ctx.send(embed=discord.Embed(title='**Unblacklist error**', description=f'> Error: Blacklist command not setup. use /setupblacklist', color=Color.red()))
             return
         
-        cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (interaction.guild.id, ))
+        cur = await db.execute(f"""SELECT banned_role_id FROM blacklist WHERE guild_id = ?""", (ctx.guild.id, ))
         roleid = await cur.fetchone()
         if roleid is None:
-            await interaction.followup.send(f'{interaction.user.mention}, to setup the blacklist command, run /setupblacklist')
+            await ctx.send(embed=discord.Embed(title='**Unblacklist error**', description=f'> Error: Blacklist command not setup. use /setupblacklist', color=Color.red()))
             return
         
-        role = discord.utils.get(interaction.guild.roles, id=roleid[0])
+        role = discord.utils.get(ctx.guild.roles, id=roleid[0])
         if role in member.roles:
             await member.remove_roles(role)
             
-            await interaction.followup.send(embed=discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 title='**Unblacklist**',
                 description=f"> Unblacklisted: {member.mention}",color=Color.green()),
             )
 
             embed = discord.Embed(
                 title="! **• UNBLACKLIST •** !",
-                description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`",
                 color=Color.blurple(),
             )
 
@@ -685,46 +611,42 @@ class Moderation(commands.Cog):
 
             embed2 = discord.Embed(
                 title="**Unblacklisted**",
-                timestamp=datetime.utcnow(),
-                description=f'**You were unblacklisted on "{interaction.guild.name}"**\n> Responsible: {interaction.user}\n ',
+                description=f'**You were unblacklisted on "{ctx.guild.name}"**\n> Responsible: {ctx.author}\n ',
                 color=Color.green()
             )
-
-            await member.send(
+            try:
+                await member.send(
                 embed=embed2,
-            )
+                )
+            except:
+                pass
             if logs is not None:
                 await channel.send(
-                    embed=embed.set_thumbnail(url=interaction.user.avatar.url)
+                    embed=embed.set_thumbnail(url=ctx.author.avatar.url)
                 )
 
         else:
-            await interaction.followup.send(
-                f"{interaction.user.mention}, {member} Is not Blacklisted.",
-                ephemeral=True,
-            )
+            await ctx.send(embed=discord.Embed(title='**Unblacklist error**', description=f'> Error: {member.mention} is not blacklisted.', color=Color.red()))
 
     @unblacklist.error
-    async def on_unblacklist_error(
-        self, interaction: discord.Interaction, error: AppCommandError
-    ):
-        if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.response.send_message(content=str(error), ephemeral=True)
+    async def on_unblacklist_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Unblacklist error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### BLACKLIST END, MANAGENICK START
 ####################################################################################################################################
 
-    @app_commands.command(name="managenick", description="Changes the passed user's nickname.")
-    @app_commands.default_permissions(manage_nicknames=True)
+    @commands.hybrid_command(name="managenick", description="Changes the passed user's nickname.")
+    @commands.has_permissions(manage_nicknames=True) 
     async def managenick(
         self,
-        interaction: discord.Interaction,
+        ctx,
         member: discord.Member,
-        nickname: str = None,
+        *,
+        nickname: str,
     ):
         print("[Managenick] has just been executed!")
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await ctx.defer()
 
         db = await aiosqlite.connect("config.db")
 
@@ -734,50 +656,53 @@ class Moderation(commands.Cog):
         )
 
         res = await db.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0] 
 
         if channel is None:
-            await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
+            await ctx.send(f'{ctx.author.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
             return
-
-        await member.edit(nick=nickname)
-        await interaction.followup.send(embed=discord.Embed(
+        if member.top_role < ctx.author.top_role and  member.top_role < self.bot.top_role:
+            await member.edit(nick=nickname)
+            await ctx.send(embed=discord.Embed(
             title='**Changed nick**',
             description=f'> Member: {member}\n> New nickname: "{nickname}"',color=Color.green()),
             ephemeral=True
-        )
+            )
+        
 
-        chan = self.bot.get_channel(logs)
+            chan = self.bot.get_channel(logs)
 
-        embed = discord.Embed(
-            title="! MANAGENICK !",
-            description=f"- Issuer: {interaction.user.mention}\n- User: {member.mention}\n- Username: {member}\n- User Id: `{member.id}`\n- New nickname: {nickname}",
-            color=Color.from_rgb(27, 152, 250),
-        )
+            embed = discord.Embed(
+                title="! MANAGENICK !",
+                description=f"- Issuer: {ctx.author.mention}\n- User: {member.mention}\n- Username: {member}\n- User Id: `{member.id}`\n- New nickname: {nickname}",
+                color=Color.from_rgb(27, 152, 250),
+            )
 
-        await chan.send(embed=embed.set_thumbnail(url=interaction.user.avatar.url))
+            await chan.send(embed=embed.set_thumbnail(url=ctx.author.avatar.url))
+            return
+        await ctx.send(embed=discord.Embed(title='**Managenick error**', description=f'> Error: You or the bot cannot edit this user.', color=Color.red()))
+
 
     @managenick.error
-    async def on_managenick_error(self, interaction: discord.Interaction, error):
-        await interaction.followup.send(content=str(error), ephemeral=True)
+    async def on_addrole_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Managenick error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### MANAGENICK END, MANAGEROLE START
 ####################################################################################################################################
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="addrole", description="Gives the passed user the passed role"
     )
-    @app_commands.describe(member='The member to give roles to.', role='The role to give to the member.', private='If the addrole message should be private.')
-    @app_commands.default_permissions(manage_roles=True)
+    @commands.has_permissions(manage_roles=True)
     async def addrole(
-        self, interaction: discord.Interaction, member: discord.User, role: discord.Role, private:bool=False
-    ) -> None:
+        self, ctx, member: discord.User, role: discord.Role
+    ):
         print("[Addrole] has just been executed")
-        await interaction.response.defer(ephemeral=private, thinking=True)
+        await ctx.defer()
 
         db = await aiosqlite.connect("config.db")
 
@@ -786,56 +711,55 @@ class Moderation(commands.Cog):
         )
 
         res = await db.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
         channel = await res.fetchone()
         logs = channel[0]
 
-        role1 = interaction.guild.get_role(role.id)
+        role1 = ctx.guild.get_role(role.id)
 
         if channel is None:
-            await interaction.followup.send('To setup {self.bot.user}\'s commands properly, run /help and choose the setup section', ephemeral=True)
+            await ctx.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
             return
 
         
         if role1 not in member.roles:
             await member.add_roles(role1)
-            await interaction.followup.send(embed=discord.Embed(title='**Added role**',description= f"> Member: {member.mention}\n> Added role: <@&{role.id}>", color=Color.green()),ephemeral=private)
+            await ctx.send(embed=discord.Embed(title='**Added role**',description= f"> Member: {member.mention}\n> Added role: <@&{role.id}>", color=Color.green()))
             
 
             embed2 = discord.Embed(
                 title="! **• ADDROLE •** !",
-                description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🔸 Role mention: <@&{role.id}>\n- 🔸 Role: {role}",
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🔸 Role mention: <@&{role.id}>\n- 🔸 Role: {role}",
                 timestamp=datetime.utcnow(),
                 color=Color.blurple(),
             )
-
-
-#################################################################################### ENEDD HERE
 
             channel = self.bot.get_channel(logs)
 
             if logs is not None:
                 await channel.send(
-                    embed=embed2.set_thumbnail(url=interaction.user.avatar.url)
+                    embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
                 )
         else:
-            await interaction.followup.send(embed=discord.Embed(title='**Add role**',description=f"> Error: {member.mention} already has <@&{role.id}>.",color=Color.red()),ephemeral=True)
-
-    @app_commands.command(
+            await ctx.send(embed=discord.Embed(title='**Addrole**',description=f"> Error: {member.mention} already has <@&{role.id}>.",color=Color.red()),ephemeral=True)
+    @addrole.error
+    async def on_addrole_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Addrole error**', description=f'> Error: {str(error)}', color=Color.red()))
+            
+            
+    @commands.hybrid_command(
         name="removerole", description="Removes the passed role from the passed user."
     )
-    @app_commands.default_permissions(manage_roles=True)
-    @app_commands.describe(member='The member to remove roles from.', role='The role to remove from the member.', private='If the removerole message should be private.')
+    @commands.has_permissions(manage_roles=True)
     async def removerole(
         self,
-        interaction: discord.Interaction,
+        ctx,
         member: discord.Member,
         role: discord.Role,
-        private:bool=False,
-    ) -> None:
+        ):
         print("[Removerole] has just been executed")
-        await interaction.response.defer(ephemeral=private,thinking=True)
+        await ctx.defer()
 
         db = await aiosqlite.connect("config.db")
 
@@ -843,124 +767,131 @@ class Moderation(commands.Cog):
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
         res = await db.execute(
-            f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+            f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
         cur = await res.fetchone()
         logs = channel[0]
         
-        role1 = interaction.guild.get_role(role.id)
+        role1 = ctx.guild.get_role(role.id)
 
         res = await cur.fetchone()
         if res is None:
-            await interaction.followup.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+            await ctx.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
             return
 
         if role1 in member.roles:
             await member.remove_roles(role1)
-            await interaction.followup.send(embed=discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 title='**Removed role**',
                 description=f"> Member: {member.mention}\n> Role removed: <@&{role.id}>",color=Color.red()),
             )
 
             embed2 = discord.Embed(
                 title="! **• REMOVEROLE •** !",
-                description=f"- 🧍 Issuer: {interaction.user.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n 🔸 Role mention: <@&{role.id}>\n- 🔸 Role: {role}",
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n 🔸 Role mention: <@&{role.id}>\n- 🔸 Role: {role}",
                 color=Color.blue(),
             )
-
 
             channel = self.bot.get_channel(logs)
 
             if logs is not None:
                 await channel.send(
-                    embed=embed2.set_thumbnail(url=interaction.user.avatar.url)
+                    embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
                 )
         else:
-            await interaction.followup.send(embed=discord.Embed(title='**Remove role**',description=f"> Error: {member.mention} does not have <@&{role.id}>.",color=Color.red()),ephemeral=True)
+            await ctx.send(embed=discord.Embed(title='**Removerole**',description=f"> Error: {member.mention} does not have <@&{role.id}>.",color=Color.red()))
 
+    @removerole.error
+    async def on_removerole_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Removerole error**', description=f'> Error: {str(error)}', color=Color.red()))
+            
 ####################################################################################################################################
 #################################################################################################################################### KYS END, PING START
 ####################################################################################################################################
 
-    @app_commands.command(name='lockdown', description='Locks the selected channel.')
-    @app_commands.default_permissions(manage_channels=True)
-    async def lockdown(self, interaction:discord.Interaction, channel:discord.TextChannel=None):
-        await interaction.response.defer()
+    @commands.hybrid_command(name='lockdown', description='Locks the selected channel.')
+    @commands.has_permissions(manage_channels=True)
+    async def lockdown(self, ctx, channel:discord.TextChannel=None):
+        await ctx.defer()
 
         if channel==None:
-            channel = interaction.channel
+            channel = ctx.channel
 
         db = await aiosqlite.connect("config.db")
 
         await db.execute("""CREATE TABLE IF NOT EXISTS lockdown(guild_name STRING, guild_id INTEGER, locked_role INTEGER)""")
 
 
-        cur = await db.execute("""SELECT locked_role FROM lockdown WHERE guild_id = ?""", (interaction.guild.id, ))
+        cur = await db.execute("""SELECT locked_role FROM lockdown WHERE guild_id = ?""", (ctx.guild.id, ))
         role_id = await cur.fetchone()
 
         if role_id is None:
 
-            x2 = channel.permissions_for(interaction.guild.default_role)
+            x2 = channel.permissions_for(ctx.guild.default_role)
 
             if x2.send_messages:
-                await channel.set_permissions(interaction.guild.default_role, send_messages = False, create_public_threads=False, create_private_threads=False)
-                await interaction.followup.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {interaction.user.mention}', color=Color.green()))
+                await channel.set_permissions(ctx.guild.default_role, send_messages = False, create_public_threads=False, create_private_threads=False)
+                await ctx.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {ctx.author.mention}', color=Color.green()))
                 return
             else:
-                await interaction.followup.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
+                await ctx.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
                 return
 
         if role_id is not None:
 
-            role = interaction.guild.get_role(role_id[0])
+            role = ctx.guild.get_role(role_id[0])
             x = channel.permissions_for(role)
 
             if x.send_messages:
                 await channel.set_permissions(role, send_messages = False, create_public_threads=False, create_private_threads=False)
-                await interaction.followup.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {interaction.user.mention}', color=Color.green()))
+                await ctx.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {ctx.user.mention}', color=Color.green()))
             else:
-                await interaction.followup.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
+                await ctx.followup.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
+    @lockdown.error
+    async def on_lockdown_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: {str(error)}', color=Color.red()))
 
-
-    @app_commands.command(name='unlock', description='Locks the selected channel.')
-    @app_commands.default_permissions(manage_channels=True)
-    async def unlock(self, interaction:discord.Interaction, channel:discord.TextChannel=None):
-        await interaction.response.defer()
+    @commands.hybrid_command(name='unlock', description='Locks the selected channel.')
+    @commands.has_permissions(manage_channels=True)
+    async def unlock(self, ctx, channel:discord.TextChannel=None):
+        await ctx.defer()
 
         if channel==None:
-            channel = interaction.channel
+            channel = ctx.channel
 
         db = await aiosqlite.connect("config.db")
 
         await db.execute("""CREATE TABLE IF NOT EXISTS lockdown(guild_name STRING, guild_id INTEGER, locked_role INTEGER)""")
 
-        cur = await db.execute("""SELECT locked_role FROM lockdown WHERE guild_id = ?""", (interaction.guild.id, ))
+        cur = await db.execute("""SELECT locked_role FROM lockdown WHERE guild_id = ?""", (ctx.guild.id, ))
         role_id = await cur.fetchone()
 
         if role_id is None:
 
-            x2 = channel.permissions_for(interaction.guild.default_role)
+            x2 = channel.permissions_for(ctx.guild.default_role)
 
             if not x2.send_messages:
-                await channel.set_permissions(interaction.guild.default_role, send_messages = True)
-                await interaction.followup.send(embed=discord.Embed(title='**Unlocked**', description=f'> Unlocked channel: <#{channel.id}>\n> Unlocked by: {interaction.user.mention}', color=Color.green()))
+                await channel.set_permissions(ctx.guild.default_role, send_messages = True)
+                await ctx.send(embed=discord.Embed(title='**Unlocked**', description=f'> Unlocked channel: <#{channel.id}>\n> Unlocked by: {ctx.author.mention}', color=Color.green()))
                 return
             else:
-                await interaction.followup.send(embed=discord.Embed(title='**Unlock error**', description=f'> Error: <#{channel.id}> `is not locked for <&@{role_id}>`', color=Color.red()))
+                await ctx.send(embed=discord.Embed(title='**Unlock error**', description=f'> Error: <#{channel.id}> `is not locked for <&@{role_id}>`', color=Color.red()))
 
         else:
 
-            role = interaction.guild.get_role(role_id[0])
+            role = ctx.guild.get_role(role_id[0])
             x = channel.permissions_for(role)
 
             if not x.send_messages:            
                 await channel.set_permissions(role, send_messages = True)
-                await interaction.followup.send(embed=discord.Embed(title='**Unlocked**', description=f'> Unlocked channel: <#{channel.id}>\n> Unlocked by: {interaction.user.mention}', color=Color.green()))
+                await ctx.send(embed=discord.Embed(title='**Unlocked**', description=f'> Unlocked channel: <#{channel.id}>\n> Unlocked by: {ctx.author.mention}', color=Color.green()))
                 return            
             else:
-                await interaction.followup.send(embed=discord.Embed(title='**Unlock error**', description=f'> Error: <#{channel.id}> `is not locked for <&@{role_id}>`', color=Color.red()))
+                await ctx.send(embed=discord.Embed(title='**Unlock error**', description=f'> Error: <#{channel.id}> `is not locked for <&@{role_id}>`', color=Color.red()))
 
-
+    @unlock.error
+    async def on_unlock_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Unlock error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 
 async def setup(bot):
