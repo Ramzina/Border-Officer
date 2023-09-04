@@ -28,11 +28,11 @@ class General(commands.Cog):
 #################################################################################################################################### ECHO START
 ####################################################################################################################################
 
-	@app_commands.command(name="echo", description="The bot says what you pass. (Backtraceable)")
-	@app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
-	async def echo(self, interaction: discord.Interaction, message: str) -> None:
+	@commands.hybrid_command(name="echo", description="The bot says what you want it to.")
+	@commands.cooldown(1, 10, commands.BucketType.user)
+	async def echo(self, ctx, * ,message: str) -> None:
 		print("[Echo] has just been executed")
-		await interaction.response.defer(thinking=True)
+		await ctx.defer()
 
 		db = await aiosqlite.connect("config.db")
 
@@ -40,71 +40,68 @@ class General(commands.Cog):
 			"""CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
 		)
 		res = await db.execute(
-			f"""SELECT * FROM logs WHERE guild_id = {interaction.guild.id}"""
+			f"""SELECT * FROM logs WHERE guild_id = {ctx.guild.id}"""
 		)
 		row = await res.fetchone()
 		if row is None:
-			await interaction.followup.send(f'{interaction.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
+			await ctx.followup.send(f'{ctx.user.mention}, To setup {self.bot.user}\'s commands properly, run /logs to set a commands log channel')
 
 		res = await db.execute(
-			f"""SELECT channel_id FROM logs WHERE guild_id = {interaction.guild.id}"""
+			f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
 		)
 		channel = await res.fetchone()
 		logs = channel[0]
 
 		channel = self.bot.get_channel(logs)
-		await interaction.followup.send(f"{message}")
+		await ctx.send(f"{message}")
 		embed = discord.Embed(
-			title="! **ECHO** !", description=f"- 🧍 User: {interaction.user.mention}\n- 🪪 User name: {interaction.user}\n- 🪪 User Id: `{interaction.user.id}`\n- 🖊️ Message: {message}",timestamp=datetime.utcnow(),color=Color.from_rgb(27, 152, 250)
+			title="! **ECHO** !", description=f"- 🧍 User: {ctx.author.mention}\n- 🪪 User name: {ctx.author}\n- 🪪 User Id: `{ctx.author.id}`\n- 🖊️ Message: {message}",timestamp=datetime.utcnow(),color=Color.from_rgb(27, 152, 250)
 		)
-		if logs is not None: await channel.send(embed=embed.set_thumbnail(url=interaction.user.avatar.url))
+		if logs is not None: await channel.send(embed=embed.set_thumbnail(url=ctx.author.avatar.url))
 	@echo.error
 	async def on_echo_error(
-		self, interaction: discord.Interaction, error: AppCommandError
+		self, ctx, error: CommandOnCooldown
 	):
-		if isinstance(error, app_commands.CommandOnCooldown):
-			await interaction.response.send_message(content=str(error), ephemeral=True)
+		await ctx.send(embed=discord.Embed(title='*Echo error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### ECHO END, KYS START
 ####################################################################################################################################
 
-	@app_commands.command(
+	@commands.hybrid_command(
 		name="kys", description="Tells the specified user to kill themself"
 	)
-	@app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
+	@commands.cooldown(1, 10, commands.BucketType.user)
 	async def kys(
-		self, interaction: discord.Interaction, member: discord.Member
+		self, ctx, member: discord.Member
 	) -> None:
 		print("[Kys] has just been executed")
-		await interaction.response.defer(thinking=True)
+		await ctx.defer()
 
-		if member.id == interaction.user.id:
-			await interaction.followup.send(embed=discord.Embed(title="**Kys error**",description=f'> Error: `Member is same as executing user`', color=Color.red()))
+		if member.id == ctx.author.id:
+			await ctx.send(embed=discord.Embed(title="**Kys error**",description=f'> Error: `Member is same as executing user`', color=Color.red()), ephemeral = True)
 			return
 		embed = discord.Embed(
 			title="**Kys**",
-			description=f"\n> Alert: {member.mention}, {interaction.user.mention} thinks you should carve your wrists!:O",
-			timestamp=datetime.utcnow(),
+			description=f"\n> Alert: {member.mention}, {ctx.author.mention} thinks you should carve your wrists!:O",
 			color=Color.green())
-		await interaction.followup.send(embed=embed)
+		await ctx.send(embed=embed)
 	@kys.error
 	async def on_kys_error(
-		self, interaction: discord.Interaction, error: AppCommandError
+		self, ctx, error: CommandOnCooldown
 	):
-		if isinstance(error, app_commands.CommandOnCooldown):
-			await interaction.response.send_message(content=str(error), ephemeral=True)
+		await ctx.send(embed=discord.Embed(title='**Kys error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 
 ####################################################################################################################################
 #################################################################################################################################### KYS END, PING START
 ####################################################################################################################################
 
-	@app_commands.command(name="ping", description="Sends the bots latency in a cool embed!")
-	@app_commands.checks.cooldown(1, 5, key=lambda i: (i.guild_id, i.user.id))
-	async def ping(self, interaction: discord.Interaction):
+	@commands.hybrid_command(name="ping", description="Sends the bots latency in a cool embed!")
+	@commands.cooldown(1, 5, commands.BucketType.user)
+	async def ping(self, ctx):
 		print("[Ping] has just been executed")
-		await interaction.response.defer(ephemeral=True)
+		await ctx.defer()
 
 		if round(self.bot.latency * 1000) < 150:
 			COLOR=Color.green()
@@ -122,74 +119,74 @@ class General(commands.Cog):
 			color=COLOR,
 		)
 
-		await interaction.followup.send(
-			embed=embed, ephemeral=True
-		)
+		await ctx.send(embed=embed, ephemeral=True)
 
 	@ping.error
 	async def on_ping_error(
-		self, interaction: discord.Interaction, error: AppCommandError
+		self, ctx, error: CommandOnCooldown
 	):
-		if isinstance(error, app_commands.CommandOnCooldown):
-			await interaction.response.send_message(content=str(error), ephemeral=True)
+		await ctx.send(embed=discord.Embed(title='**Ping error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### PING END,  START
 ####################################################################################################################################
 
-	@app_commands.command(
+	@commands.hybrid_command(
 		name="random", description="Gives a random number between the two you pass."
 	)
-	@app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
+	@commands.cooldown(1, 10, commands.BucketType.user)
 	async def random(
-		self, interaction: discord.Interaction, num1: int = 1, num2: int = 100):
-
+		self, ctx, num1: int = 1, num2: int = 100):
 		print("[Random] has just been executed")
+		await ctx.defer()
 
-		await interaction.response.send_message(embed=discord.Embed(title="**Random**",description=f"> Number: {random.randint(num1, num2)}",color=Color.green()))
+		await ctx.send(embed=discord.Embed(title="**Random**",description=f"> Number: {random.randint(num1, num2)}",color=Color.green()))
 
 	@random.error
 	async def on_random_error(
-		self, interaction: discord.Interaction, error: AppCommandError
+		self, ctx, error: CommandOnCooldown
 	):
-		if isinstance(error, app_commands.CommandOnCooldown):
-			await interaction.response.send_message(content=str(error), ephemeral=True)
-
+		await ctx.send(embed=discord.Embed(title='**Random error**', description=f'> Error: {str(error)}', color=Color.red()))
 ####################################################################################################################################
 #################################################################################################################################### RANDOM END, WEATHER START
 ####################################################################################################################################
 
-	@app_commands.command(name='weather', description='Gets the forecast in the selected city.')
-	@app_commands.checks.cooldown(1,15, key=lambda i: (i.guild.id, i.user.id))
-	async def weather(self, interaction:discord.Interaction, city:str, private:bool=False):
-		await interaction.response.defer(ephemeral=private, thinking=True)
+	@commands.hybrid_command(name='weather', description='Gets the forecast in the selected city.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def weather(self, ctx, *, city:str):
 		print('[Weather] has just been executed.')
+		await ctx.defer()
+
+		msg = await ctx.send(embed=discord.Embed(description='🌥️ Fetching weather...', color=Color.yellow()))
+
 		async with python_weather.Client(unit=python_weather.METRIC) as client:
 			weather = await client.get(city)
-			embed = discord.Embed(title=f'**Weather in {city.capitalize()}**', description=f"> ☁️ Weather: {weather.current.description}\n> 🌥️ Temperature: {weather.current.temperature}C°\n> 💦 Humidity: {weather.current.humidity}%\n> 🚩 Wind speed: {weather.current.wind_speed} Km/h\n> 🚩 Wind direction: {weather.current.wind_direction}",
-			color=Color.blue())
-			await interaction.followup.send(embed= discord.Embed(title=f'**Weather in {city.capitalize()}**', description=f"> ☁️ Weather: {weather.current.description}\n> 🌥️ Temperature: {weather.current.temperature}C°\n> 💦 Humidity: {weather.current.humidity}%\n> 🚩 Wind speed: {weather.current.wind_speed} Km/h\n> 🚩 Wind direction: {weather.current.wind_direction}",color=Color.blue()))
+			await msg.edit(discord.Embed(title=f'**Weather in {city.capitalize()}**', description=f"> ☁️ Weather: {weather.current.description}\n> 🌥️ Temperature: {weather.current.temperature}C°\n> 💦 Humidity: {weather.current.humidity}%\n> 🚩 Wind speed: {weather.current.wind_speed} Km/h\n> 🚩 Wind direction: {weather.current.wind_direction}",
+			color=Color.blue()))
 	@weather.error
-	async def on_weather_error(self, interaction: discord.Interaction, error: AppCommandError):
-		if isinstance(error, app_commands.CommandOnCooldown): await interaction.response.send_message(embed=discord.Embed(title='**Weather error**', description=f'> Error: {str(error)}'), ephemeral=True)
-
+	async def on_weather_error(self, ctx, error: CommandOnCooldown):
+		await ctx.send(embed=discord.Embed(title='**Weather error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
 #################################################################################################################################### WEATHER END, 8BALL START
 ####################################################################################################################################
 
-	@app_commands.command(name='8ball', description='Ask the holy 8ball a question!')
-	@app_commands.checks.cooldown(1,15, key=lambda i: (i.guild.id, i.user.id))
-	async def eightball(self,interaction:discord.Interaction, question:str):
-		await interaction.response.defer(ephemeral=True, thinking=True)
+	@commands.hybrid_command(name='8ball', description='Ask the holy 8ball a question!')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def eightball(self,ctx,* ,question:str):
 		print('[8ball] has just been executed.')
+		await ctx.defer()
 
 		possible_answers = ['Yes.', 'No.', 'Possibly.', 'Maybe.', 'The stars tell me yes.', 'The stars tell me no.', 'The stars are unsure.', 'The stars don\'t know yet.','Fuck it sure.', 'Why not.', 'Sure', 'No fuck off.', 'Lmao never.', 'Always.', 'I don\'t fucking know.', 'YEP', '10000%', 'I think so ¯\_(ツ)_/¯']
 
 		answer = random.choice(possible_answers)
 
 
-		await interaction.followup.send(embed=discord.Embed(title='**The magic 8ball**', description=f'- {interaction.user.mention} asked: "{question}"\n- Magic 8ball says: "{answer}"', color=Color.green()))
+		await ctx.send(embed=discord.Embed(title='**The magic 8ball**', description=f'- {ctx.author.mention} asked: "{question}"\n- Magic 8ball says: "{answer}"', color=Color.green()))
+	@eightball.error
+	async def on_eightball_error(self, ctx, error: CommandOnCooldown):
+		await ctx.send(embed=discord.Embed(title='**8Ball error**', description=f'> Error: {str(error)}', color=Color.red()))
+
 
 ####################################################################################################################################
 #################################################################################################################################### 8BALL END
