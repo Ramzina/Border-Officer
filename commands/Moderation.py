@@ -3,28 +3,93 @@ from discord.ext import commands
 import aiosqlite
 from datetime import timedelta
 from discord import Color
+import random
 from discord import app_commands
 from datetime import datetime
 from discord.ext.commands import CommandNotFound, CommandOnCooldown, MissingPermissions, MissingRequiredArgument, has_permissions
 
 from discord.app_commands import AppCommandError
 
+chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890'
+seperator = '-'
 
 class Moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
 
+    @commands.hybrid_command(name='roleall', description='Adds role to all users in guild.')
+    @commands.has_permissions(administrator=True)
+    async def roleall(self, ctx, role:discord.Role):
+        await ctx.defer()
+
+        msg = await ctx.send(embed=discord.Embed(description=f'Applying role, {role.mention} to {ctx.guild.member_count} users...', color=Color.yellow()))
+
+        num = 0
+
+        for member in ctx.guild.members:
+            try:
+                await member.add_roles(role)
+                num += 1
+            except:
+                pass
+        await msg.edit(embed=discord.Embed(description=f'Applied {role.mention} to {num} users successfully.', color=Color.green()))
+
+    @commands.command(name='blacklistguild', description='Bot leaves the guild and blacklists it.')
+    @commands.is_owner()
+    async def guildblacklist(self, ctx, guild_id:int):
+        db = await aiosqlite.connect("config.db")
+        await db.execute("CREATE TABLE IF NOT EXISTS guildblacklist(guild_name TEXT, guild_id INTEGER)")
+        msg = await ctx.send(embed=discord.Embed(description=f'<:yellowdot:1148198566448337018> Blacklisting guild: {guild_id}', color=Color.yellow()))
+        for server in self.bot.guilds:
+            if server.id == guild_id:
+                try:
+                    await server.system_channel.send(embed=discord.Embed(description=f'This guild has been blacklisted from using {self.bot.user}',color=Color.red()).set_image(url='https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fi.kym-cdn.com%2Fphotos%2Fimages%2Fnewsfeed%2F002%2F213%2F963%2F293.jpg&f=1&nofb=1&ipt=f823b62ebc7bd23f50b1d063696aa85d006f4e2d712cf7b62ad76c4507bdf968&ipo=images'))
+                except:
+                    pass
+                await db.execute("INSERT INTO guildblacklist(guild_name, guild_id) VALUES(?,?)", (server.name,guild_id,))
+                await db.commit()
+                await msg.edit(embed=discord.Embed(description=f'<:greentick:1148198571330515025> Blacklisted guild: {guild_id}, {server.name}', color=Color.green()))
+                await server.leave()
+                await db.close()
+    @commands.command(name='unblacklistguild', description='Bot leaves the guild and blacklists it.')
+    @commands.is_owner()
+    async def unguildblacklist(self, ctx, guild_id:int):
+        db = await aiosqlite.connect("config.db")
+        await db.execute("CREATE TABLE IF NOT EXISTS guildblacklist(guild_name TEXT, guild_id INTEGER)")
+        msg = await ctx.send(embed=discord.Embed(description=f'<:yellowdot:1148198566448337018> Blacklisting guild: {guild_id}', color=Color.yellow()))
+        cur = await db.execute("SELECT guild_id FROM guildblacklist")
+        res = await cur.fetchall()
+        print(res)
+        if not res:
+            await msg.edit(embed=discord.Embed(description=f'<:redtick:1148198569296273408> No guilds blacklisted.', color=Color.red()))
+            return
+        for id in res:
+            if id[0] == guild_id:
+                await db.execute("DELETE FROM guildblacklist WHERE guild_id = ?", (guild_id, ))
+                await db.commit()
+                await msg.edit(embed=discord.Embed(description=f'<:greentick:1148198571330515025> Unblacklisted guild: {guild_id}', color=Color.green()))
+                await db.close()
+                return
+
+        await msg.edit(embed=discord.Embed(description=f'<:redtick:1148198569296273408> Guild not blacklisted.', color=Color.red()))
+
+
+
+
 ####################################################################################################################################
 #################################################################################################################################### BAN START
 ####################################################################################################################################
 
+
+
+
     @commands.hybrid_command(
         name="ban",
-        description="Bans the passed user.",
+        description="Bans the user passed.",
     )
     @commands.has_permissions(ban_members=True)
-    async def ban(self, ctx, member: discord.User, * ,reason: str = None):
+    async def ban(self, ctx, member: discord.Member, * ,reason: str = None):
 
         print("[Ban] has just been executed")
         await ctx.defer()
@@ -51,23 +116,24 @@ class Moderation(commands.Cog):
             return
         if ctx.author.top_role > member.top_role or member.top_role.permissions.administrator == False:
 
-            try:
-                embed = discord.Embed(
+            embed = discord.Embed(
                     title="**Banned**",
                     description=f'**You were banned from "{ctx.guild.name}"**\n> Reason: "{reason}"\n> Responsible: {ctx.author.mention}',
                     color=Color.red(),
                 )
+            
+            try:
+                await member.send(embed=embed)
             except:
                 pass
-            
-            if member in ctx.guild.members:
-                await member.send(embed=embed)
-                
-            await ctx.guild.ban(member=member, reason=reason)
-            await ctx.send(embed=discord.Embed(
+            await member.ban(reason=reason)
+            try:
+                await ctx.send(embed=discord.Embed(
                 title=f'**Ban**',
                 description=f'> Banned: {member.mention}\n> Reason: "{reason}"',color=Color.red()),
-            )
+                )
+            except:
+                pass
 
             embed2 = discord.Embed(
                 title="! **• BAN •** !",
@@ -229,7 +295,7 @@ class Moderation(commands.Cog):
         logs = channel[0]
 
         if channel is None:
-            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error, logs are not setup. Use /logs', color=Color.red()))
+            await ctx.send(embed=discord.Embed(title='**Mute error**', description=f'> Error, logs are not setup. Use /logs', color=Color.red()))
             return
 
         if ctx.author.top_role > member.top_role or member.top_role.permissions.administrator == False:
@@ -418,9 +484,8 @@ class Moderation(commands.Cog):
 
     @commands.hybrid_command(name="clear", description="Clears messages from the passed user")
     @commands.has_permissions(manage_messages=True)
-    @commands.cooldown(1, 10, commands.BucketType.user)
     async def clear(
-        self, ctx, member: discord.User, amount: int
+        self, ctx, member: discord.Member, amount: int
     ):
         print("[Clear] has just been executed")
         await ctx.defer()
@@ -445,32 +510,16 @@ class Moderation(commands.Cog):
         name="purge", description="Deletes the passed amount of messages."
     )
     @commands.has_permissions(manage_messages=True)
-    @commands.cooldown(1, 15, commands.BucketType.user)
     async def purge(self, ctx, amount: int = 5):
         print("[Purge] has just been executed!")
         await ctx.defer()
+        await ctx.message.delete()
 
-        floor = 2
-        ceiling = 50
-    
-       
-        if amount >= floor and amount <= ceiling:
-            await ctx.channel.purge(limit=amount+1)
-            await ctx.send(embed=discord.Embed(
+        await ctx.channel.purge(limit=amount+1)
+        await ctx.send(embed=discord.Embed(
                 title='**Purge**',
-                description=f"> Deleted: {amount} messages", color=Color.green()),delete_after=5.0)
-           
+                description=f"> Deleted: {amount} messages", color=Color.green()), delete_after=5.0)
 
-        elif amount < floor:
-            await ctx.send(embed=discord.Embed(
-                title='**Purge**',
-                description=f"> Error: Amount is less than `{floor}`\n> Usage example: `/purge 5`",color=Color.red()),delte_after=5.0)
-            
-
-        elif amount > ceiling:
-            await ctx.send(embed=discord.Embed(
-                title='**Purge**',
-                description=f"> Error: Amount must be less than `{ceiling}`\n> Usage example: `/purge 5`",color=Color.red()),delete_after=5.0)
 
     @purge.error
     async def on_purge_error(self, ctx, error):
@@ -479,13 +528,133 @@ class Moderation(commands.Cog):
 ####################################################################################################################################
 #################################################################################################################################### PURGE END, BLACKLIST START
 ####################################################################################################################################
-            
+    @commands.hybrid_command(name='warn', description='Warns a user.')
+    @commands.has_permissions(moderate_members=True)
+    async def warn(self, ctx, member:discord.Member, *,reason:str):
+        print('[Warn] has just been executed.')
+        await ctx.defer()
+        warndb = await aiosqlite.connect("warns.db")
+        await warndb.execute("""CREATE TABLE IF NOT EXISTS warns(guild_name TEXT, guild_id INTEGER, user_id INTEGER,warn_id TEXT, reason TEXT)""")
+
+        configdb = await aiosqlite.connect("config.db")
+
+        loggerton = await configdb.execute("SELECT channel_id FROM logs WHERE guild_id = ?", (ctx.guild.id, ))
+        logs = await loggerton.fetchone()
+        if not logs:
+            await ctx.send(embed=discord.Embed(title='**Warn error**', description=f'> Error: Logs are not setup. Use /logs', color=Color.red()))
+            return
+        channel = logs[0]
+        if ctx.author.top_role > member.top_role or member.top_role.permissions.administrator == False:
+            chan = await ctx.guild.fetch_channel(channel)
+
+            sec1 = random.choice(chars) + random.choice(chars) + random.choice(chars) + random.choice(chars)
+            sec2 = random.choice(chars) + random.choice(chars) + random.choice(chars) + random.choice(chars)
+            sec3 = random.choice(chars) + random.choice(chars) + random.choice(chars) + random.choice(chars)
+            warnid = f'{sec1}{seperator}{sec2}{seperator}{sec3}'
+
+            await ctx.send(embed=discord.Embed(title='**Warned**', description=f'> Warned {member.mention}\n> Reason: `{reason}`\n> Warn Id: `{warnid}`', color=Color.red()))
+
+            try:
+                await member.send(embed=discord.Embed(title='**Warned**', description=f'**You have been warned on "{ctx.guild.name}"**\n> Reason: `{reason}`\n> Warn Id: `{warnid}`\n> Responsible: {ctx.author}', color=Color.red()))
+            except:
+                pass
+            await warndb.execute("""INSERT INTO warns(guild_name, guild_id, user_id,warn_id, reason) VALUES(?,?,?,?,?)""", (ctx.guild.name, ctx.guild.id, member.id,warnid, reason, ))
+            await warndb.commit()
+            embed2 = discord.Embed(
+                title="**! • WARN • !**",
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Warn Context: {reason}\n- Warn Id: `{warnid}`",
+                color=Color.blurple(),
+                    )
+            await chan.send(embed=embed2.set_thumbnail(url=ctx.author.avatar.url))
+            await configdb.close()
+            await warndb.close()
+        else:
+            await ctx.send(embed=discord.Embed(title='**Warn Error**', description='> Error: You cannot warn this user.', color=Color.red()))
+            return
+    @warn.error
+    async def on_warn_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Warn error**', description=f'> Error: {str(error)}', color=Color.red()))
+    @commands.hybrid_command(name='removewarn', description='Deletes a users warn.')
+    @commands.has_permissions(moderate_members=True)
+    async def removewarn(self, ctx, member:discord.Member,warn_id:str):
+        print('[Removewarn] has just been executed.')
+        await ctx.defer()
+        warndb = await aiosqlite.connect("warns.db")
+        await warndb.execute("""CREATE TABLE IF NOT EXISTS warns(guild_name TEXT, guild_id INTEGER, user_id INTEGER,warn_id TEXT, reason TEXT)""")
+
+        configdb = await aiosqlite.connect("config.db")
+
+        loggerton = await configdb.execute("SELECT channel_id FROM logs WHERE guild_id = ?", (ctx.guild.id, ))
+        logs = await loggerton.fetchone()
+        if not logs:
+            await ctx.send(embed=discord.Embed(title='**Warn error**', description=f'> Error: Logs are not setup. Use /logs', color=Color.red()))
+            return
+        channel = logs[0]
+        if ctx.author.top_role > member.top_role or member.top_role.permissions.administrator == False:
+            chan = await ctx.guild.fetch_channel(channel)
+
+            cur = await warndb.execute("SELECT warn_id, reason FROM warns WHERE guild_id = ? AND user_id = ? AND warn_id = ?", (ctx.guild.id, member.id, warn_id, ))
+            res = await cur.fetchall()
+            if not res:
+                await ctx.send(embed=discord.Embed(title='Removewarn Error', description=f'> Error: `{warn_id}` is an invalid warn id.', color=Color.red()))
+                return
+
+            cur = res[0]
+
+            await ctx.send(embed=discord.Embed(title='**Warn Removed**', description=f'> Warn removed from {member.mention}\n> Warn Id: `{cur[0]}`\n> Warn Context: {cur[1]}', color=Color.green()))
+
+            try:
+                await member.send(embed=discord.Embed(title='**Warn Removed**', description=f'**A warn was removed on "{ctx.guild.name}"**\n> Reason: `{cur[1]}`\n> Warn Id: `{cur[0]}`\n> Responsible: {ctx.author}', color=Color.green()))
+            except:
+                pass
+            await warndb.execute("""DELETE FROM warns WHERE guild_id = ? AND warn_id = ? AND user_id = ? """, (ctx.guild.id, cur[0], member.id, ))
+            await warndb.commit()
+            embed2 = discord.Embed(
+                title="**! • WARN REMOVED • !**",
+                description=f"- 🧍 Issuer: {ctx.author.mention}\n- 🧍 User: {member.mention}\n- 🪪 User name: {member}\n- 🪪 User Id: `{member.id}`\n- 🖊️ Warn Context: {cur[1]}\n- Warn Id: `{cur[0]}`",
+                color=Color.blurple(),
+                    )
+            await chan.send(embed=embed2.set_thumbnail(url=ctx.author.avatar.url))
+            await configdb.close()
+            await warndb.close()
+        else:
+            await ctx.send(embed=discord.Embed(title='**Warn Error**', description='> Error: You cannot warn this user.', color=Color.red()))
+            return
+    @removewarn.error
+    async def on_removewarn_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Removewarn error**', description=f'> Error: {str(error)}', color=Color.red()))
+    @commands.hybrid_command(name='warns', description='Shows the warns of a user.')
+    async def warns(self, ctx, member:discord.Member=None):
+        await ctx.defer()
+
+        warndb = await aiosqlite.connect("warns.db")
+        await warndb.execute("CREATE TABLE IF NOT EXISTS warns(guild_name TEXT, guild_id INTEGER, user_id INTEGER,warn_id TEXT, reason TEXT)")
+
+        if member is None:
+            member = ctx.author
+
+        res = await warndb.execute("SELECT reason, warn_id FROM warns WHERE guild_id = ? AND user_id = ?", (ctx.guild.id, member.id, ))
+        warntuple = await res.fetchall()
+        if not warntuple:
+            await ctx.send(embed=discord.Embed(title="**Warns Error**", description=f'> Error: {member} has no warns.', color=Color.red()))
+            return
+        warnthing = warntuple[0]
+        warnsids = warnthing[1]
+
+        warns = [f"\n> **{warn[0]}** | `{warn[1]}`" for warn in warntuple]
+
+        embed = discord.Embed(title=f'{member}\'s Warns', description=''.join(warns), color=Color.blurple()).set_footer(text='WARN REASON, WARN ID')
+        await ctx.send(embed=embed)
+    @warns.error
+    async def on_warns_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Warns error**', description=f'> Error: {str(error)}', color=Color.red()))
+
     @commands.hybrid_command(
         name="blacklist", description="Blacklists the passed user."
     )
     @commands.has_permissions(moderate_members=True)
     async def blacklist(self, ctx, member: discord.Member, *,reason: str):
-        
+
         print("[Blacklist] has just been executed")
         await ctx.defer()
 
@@ -503,7 +672,7 @@ class Moderation(commands.Cog):
         channel = await res.fetchone()
 
         if channel is None:
-            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: Blacklist is not setup. Use /setupblacklist', color=Color.red()))
+            await ctx.send(embed=discord.Embed(title='**Blacklist error**', description=f'> Error: Blacklist is not setup. Use /logs', color=Color.red()))
             return
 
         logs = channel[0] 
@@ -687,7 +856,7 @@ class Moderation(commands.Cog):
 
 
     @managenick.error
-    async def on_addrole_error(self, ctx, error):
+    async def on_managenick_error(self, ctx, error):
         await ctx.send(embed=discord.Embed(title='**Managenick error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 ####################################################################################################################################
@@ -699,7 +868,7 @@ class Moderation(commands.Cog):
     )
     @commands.has_permissions(manage_roles=True)
     async def addrole(
-        self, ctx, member: discord.User, role: discord.Role
+        self, ctx, member: discord.Member, role: discord.Role
     ):
         print("[Addrole] has just been executed")
         await ctx.defer()
@@ -716,15 +885,12 @@ class Moderation(commands.Cog):
         channel = await res.fetchone()
         logs = channel[0]
 
-        role1 = ctx.guild.get_role(role.id)
-
         if channel is None:
             await ctx.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
             return
-
         
-        if role1 not in member.roles:
-            await member.add_roles(role1)
+        if role not in member.roles:
+            await member.add_roles(role)
             await ctx.send(embed=discord.Embed(title='**Added role**',description= f"> Member: {member.mention}\n> Added role: <@&{role.id}>", color=Color.green()))
             
 
@@ -737,7 +903,7 @@ class Moderation(commands.Cog):
 
             channel = self.bot.get_channel(logs)
 
-            if logs is not None:
+            if not logs:
                 await channel.send(
                     embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
                 )
@@ -766,21 +932,18 @@ class Moderation(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-        res = await db.execute(
+        cur = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
-        cur = await res.fetchone()
-        logs = channel[0]
-        
-        role1 = ctx.guild.get_role(role.id)
-
         res = await cur.fetchone()
-        if res is None:
-            await ctx.send(f'To setup {self.bot.user}\'s commands properly, run /help and choose the setup section')
+        logs = res[0]
+        await cur.close()
+        if not res:
+            await ctx.send(f'Run /logs to setup the logs channel.')
             return
 
-        if role1 in member.roles:
-            await member.remove_roles(role1)
+        if role in member.roles:
+            await member.remove_roles(role)
             await ctx.send(embed=discord.Embed(
                 title='**Removed role**',
                 description=f"> Member: {member.mention}\n> Role removed: <@&{role.id}>",color=Color.red()),
@@ -794,7 +957,7 @@ class Moderation(commands.Cog):
 
             channel = self.bot.get_channel(logs)
 
-            if logs is not None:
+            if not logs:
                 await channel.send(
                     embed=embed2.set_thumbnail(url=ctx.author.avatar.url)
                 )
@@ -804,17 +967,17 @@ class Moderation(commands.Cog):
     @removerole.error
     async def on_removerole_error(self, ctx, error):
         await ctx.send(embed=discord.Embed(title='**Removerole error**', description=f'> Error: {str(error)}', color=Color.red()))
-            
+
 ####################################################################################################################################
 #################################################################################################################################### KYS END, PING START
 ####################################################################################################################################
 
     @commands.hybrid_command(name='lockdown', description='Locks the selected channel.')
-    @commands.has_permissions(manage_channels=True)
+    @commands.has_permissions(manage_messages=True)
     async def lockdown(self, ctx, channel:discord.TextChannel=None):
         await ctx.defer()
 
-        if channel==None:
+        if not channel:
             channel = ctx.channel
 
         db = await aiosqlite.connect("config.db")
@@ -825,34 +988,23 @@ class Moderation(commands.Cog):
         cur = await db.execute("""SELECT locked_role FROM lockdown WHERE guild_id = ?""", (ctx.guild.id, ))
         role_id = await cur.fetchone()
 
-        if role_id is None:
-
-            x2 = channel.permissions_for(ctx.guild.default_role)
-
-            if x2.send_messages:
-                await channel.set_permissions(ctx.guild.default_role, send_messages = False, create_public_threads=False, create_private_threads=False)
-                await ctx.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {ctx.author.mention}', color=Color.green()))
-                return
-            else:
-                await ctx.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
-                return
-
-        if role_id is not None:
-
+        if not role_id:
+            role_id = None
+            role = ctx.guild.default_role
+        else:
             role = ctx.guild.get_role(role_id[0])
-            x = channel.permissions_for(role)
-
-            if x.send_messages:
-                await channel.set_permissions(role, send_messages = False, create_public_threads=False, create_private_threads=False)
-                await ctx.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {ctx.user.mention}', color=Color.green()))
-            else:
-                await ctx.followup.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
+        x = channel.permissions_for(role)
+        if x.send_messages:
+            await channel.set_permissions(role, send_messages = False, create_public_threads=False, create_private_threads=False)
+            await ctx.send(embed=discord.Embed(title='**Locked**', description=f'> Locked channel: <#{channel.id}>\n> Locked by: {ctx.author.mention}', color=Color.green()))
+        else:
+            await ctx.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: <#{channel.id}> `is not locked.`', color=Color.red()))
     @lockdown.error
     async def on_lockdown_error(self, ctx, error):
         await ctx.send(embed=discord.Embed(title='**Lock error**', description=f'> Error: {str(error)}', color=Color.red()))
 
     @commands.hybrid_command(name='unlock', description='Locks the selected channel.')
-    @commands.has_permissions(manage_channels=True)
+    @commands.has_permissions(manage_messages=True)
     async def unlock(self, ctx, channel:discord.TextChannel=None):
         await ctx.defer()
 
