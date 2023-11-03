@@ -560,7 +560,7 @@ class Community(commands.Cog):
 
     @commands.hybrid_command(name='createtag', description='Creates a tag to be used in the current guild.')
     @commands.has_permissions(manage_messages=True)
-    async def create_tag(self, ctx, *,|tag_name:str, *,tag_info:str):
+    async def create_tag(self, ctx, tag_name:str, *,tag_info:str):
         await ctx.defer()
 
         msg = await ctx.send(embed=discord.Embed(title="**Creating tag...**", description=f"\n> Tag name: {tag_name}\n> Tag info: {tag_info}", color=Color.yellow()))
