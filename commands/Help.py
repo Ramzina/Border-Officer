@@ -57,7 +57,7 @@ class Help(commands.Cog):
             color=Color.blurple(),
         ).set_footer(text='This will be deleted in 30 seconds.')
 
-        view = View().add_item(HelpSelect(self.bot))    
+        view = View().add_item(HelpSelect(self.bot))
         msg = await ctx.send(embed=embed, view=view)
         await asyncio.sleep(30)
         await msg.delete()
