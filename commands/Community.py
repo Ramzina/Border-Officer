@@ -1,27 +1,238 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.interactions import Interaction
 from discord.ui import Button,button, View
 import random
+import datetime
 from TOD.dare import dare
 import asyncio
 from TOD.truth import truth
 from typing import Literal
 from discord.app_commands import AppCommandError
 from discord import Color
-from datetime import datetime
+import datetime
 import aiosqlite
+
+
 
 chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890'
 seperator = '-'
+
+time_convert = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+def convert_time_to_seconds(time):
+    try:
+        return int(time[:-1]) * time_convert[time[-1]]
+    except:
+        return time
+import ast
+def insert_returns(body):
+    # insert return stmt if the last expression is a expression statement
+    if isinstance(body[-1], ast.Expr):
+        body[-1] = ast.Return(body[-1].value)
+        ast.fix_missing_locations(body[-1])
+
+    # for if statements, we insert returns into the body and the orelse
+    if isinstance(body[-1], ast.If):
+        insert_returns(body[-1].body)
+        insert_returns(body[-1].orelse)
+
+    # for with blocks, again we insert returns into the body
+    if isinstance(body[-1], ast.With):
+        insert_returns(body[-1].body)
+
+
+
+class NitroRedeem(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @button(label='ㅤㅤㅤㅤㅤㅤRedeem!ㅤㅤㅤㅤㅤㅤ', style=discord.ButtonStyle.green, custom_id='nitroaccept')
+    async def nitroaccept(self, interaction:discord.Interaction, button: Button):
+        await interaction.response.defer(ephemeral=True)
+
+        await interaction.followup.send(embed=discord.Embed(description=f'Get fucking trolled 😭', color=Color.red()).set_image(url='https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fi.kym-cdn.com%2Fphotos%2Fimages%2Fnewsfeed%2F002%2F213%2F963%2F293.jpg&f=1&nofb=1&ipt=f823b62ebc7bd23f50b1d063696aa85d006f4e2d712cf7b62ad76c4507bdf968&ipo=images'), ephemeral=True)
+
+
+
+class FoodConfirm(View):
+    def __init__(self, original_author: int, original_message: int):
+        self.author = original_author
+        self.message = original_message
+        super().__init__(timeout=None)
+
+    async def interaction_check(self, interaction:discord.Interaction) -> bool:
+        if interaction.user.id == self.author:
+            return True
+        else:
+            await interaction.response.send_message(ephemeral=True, embed=discord.Embed(description='This button is not for you.', color=Color.red()), view=None)
+            return False
+
+    @button(label='Confirm!', style=discord.ButtonStyle.green, custom_id='foodconfirm')
+    async def confirm(self, interaction:discord.Interaction, button:Button):
+        msg = await interaction.channel.fetch_message(self.message)
+        await msg.edit(embed=discord.Embed(title='Food Ordered!', description='> Your food is on the way! Please wait 5 minutes.', color=Color.green()), view=None)
+
+        await asyncio.sleep(300) # 300 = 5 minutes
+
+        await interaction.channel.send(content=f'||{interaction.user.mention}||',embed=discord.Embed(title='Food Arrived!', description=f'> {interaction.user.name} ({interaction.user.mention}) Your food is here!', color=Color.green()))
+    
+    @button(label='Cancel', style=discord.ButtonStyle.danger, custom_id='foodcancel')
+    async def cancel(self, interaction:discord.Interaction, button:Button):
+        msg = await interaction.channel.fetch_message(self.message)
+
+        await msg.edit(embed=discord.Embed(title='Order Cancelled!', description=f'> {interaction.user.name} ({interaction.user.mention}) cancelled the food order!', color=Color.red()).set_footer(text='Deleting order request in 5 seconds.'), view=None)
+
+        await asyncio.sleep(5)
+        
+        await msg.delete()
+
+
+class GiveawayJoin(View):
+    def __init__(self, message_id,required_role, joined_mems, joined_list, prize, winners, start_time,time):
+        self.time = time
+        self.start_time = start_time
+        self.message_id = message_id
+        self.prize = prize
+        self.winners = winners
+        self.joined_list = joined_list
+        self.joined = joined_mems
+        self.req_role = required_role
+        super().__init__(timeout=None)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if f"<@{interaction.user.id}>" in self.joined_list:
+            embed=discord.Embed(description=f'You have already entered this giveaway!', color=Color.red())
+            View = GiveawayLeave(self.message_id, self.req_role, self.joined, self.joined_list, self.prize, self.winners, self.start_time,self.time)
+            await interaction.response.send_message(embed=embed, view=View, ephemeral=True)
+            return False
+        if self.req_role in interaction.user.roles or self.req_role is None:
+            return True
+        if self.req_role not in interaction.user.roles:
+            await interaction.response.send_message(ephemeral=True, embed=discord.Embed(description=f'You don\'t have the role {self.req_role}, required to join this giveaway!', color=Color.red()))
+            return False
+
+    @button(label='Join Giveaway!', style=discord.ButtonStyle.blurple, custom_id='giveawayjoin')
+    async def giveawayjoin(self, interaction:discord.Interaction, button:Button):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        self.joined_list.append(f"<@{interaction.user.id}>")
+        self.joined += 1
+        await interaction.followup.send(embed=discord.Embed(description=f'Joined giveaway! Joiner number {self.joined}', color=Color.blurple()),ephemeral=True)
+        msg = await interaction.channel.fetch_message(self.message_id)
+        await msg.edit(embed=discord.Embed(title=f'{self.prize.capitalize()}', description=f'> Expires: {discord.utils.format_dt(self.start_time + datetime.timedelta(0, int(self.time)), style="R")} \n> Winners: {self.winners}\n> Entries: {self.joined}\n> Required Role: {self.req_role} ', color=Color.blurple()))
+
+class GiveawayLeave(View):
+    def __init__(self, message_id,required_role, joined_mems, joined_list, prize, winners, start_time,time):
+        self.time = time
+        self.start_time = start_time
+        self.message_id = message_id
+        self.prize = prize
+        self.winners = winners
+        self.joined_list = joined_list
+        self.joined = joined_mems
+        self.req_role = required_role
+        super().__init__(timeout=None)
+    
+    @button(label='Leave Giveaway', style=discord.ButtonStyle.danger, custom_id='giveawayleave')
+    async def giveawayleave(self, interaction:discord.Interaction, button:Button):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        View = GiveawayJoin(self.message_id, self.req_role, self.joined, self.joined_list, self.prize, self.winners, self.start_time,self.time)
+
+        print(self.joined_list)
+
+        self.joined_list.remove(f"<@{interaction.user.id}>")
+        self.joined -= 1
+
+        await interaction.followup.send(embed=discord.Embed(description=f'You have exited the giveaway.', color=Color.red()),ephemeral=True)
+        msg = await interaction.channel.fetch_message(self.message_id)
+        await msg.edit(embed=discord.Embed(title=f'{self.prize.capitalize()}', description=f'> Expires: {discord.utils.format_dt(self.start_time + datetime.timedelta(0, int(self.time)), style="R")} \n> Winners: {self.winners}\n> Entries: {self.joined}\n> Required Role: {self.req_role} ', color=Color.blurple()))
+
+class GiveawayReroll(View):
+    def __init__(self, joined_list, winners, prize, message_id):
+        self.message_id = message_id
+        self.joined_list = joined_list
+        self.winners = winners
+        self.prize = prize
+        super().__init__(timeout=None)
+    
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        user = interaction.user.guild_permissions
+        if user.administrator == True:
+            return True
+        else:
+            await interaction.response.send_message(embed=discord.Embed(description=f'You don\'t have the required permissions to reroll this giveaway.', color=Color.red()), ephemeral=True)
+            return False
+        
+    @button(label='Reroll Giveaway.', style=discord.ButtonStyle.danger, custom_id='giveawayreroll')
+    async def giveawayreroll(self, interaction:discord.Interaction, button:Button):
+        await interaction.response.defer(thinking=True)
+
+        message = await interaction.channel.fetch_message(self.message_id)
+        await message.edit(view=None)
+
+        winner_list = random.sample(self.joined_list, self.winners)
+
+        msg = await interaction.followup.send(embed=discord.Embed(title='Giveaway Rerolled!', description=f'> Winner\s: {", ".join(winner_list)}\n> Prize: {self.prize}', color=Color.blurple()))
+        await msg.edit(view=GiveawayReroll(self.joined_list,self.winners,self.prize, msg.id))
 
 class Community(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-####################################################################################################################################
-#################################################################################################################################### NICK START
-####################################################################################################################################
+
+    @app_commands.command(name='giveaway', description='Creates a giveaway!')
+    @app_commands.default_permissions(administrator=True)
+    async def giveawaycreate(self, interaction:discord.Interaction, prize:str,time:str="5m", winners:int=1, required_role:discord.Role=None):
+
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        time = convert_time_to_seconds(time)
+        print(time)
+        start_time = discord.utils.utcnow()
+
+        if winners <= 0:
+            await interaction.response.send_message(embed=discord.Embed(title='Giveaway Error.', description='> Error: Winners amount must be greater than 0'))
+            return
+
+
+        joined = 0
+        joined_list = []
+
+        msg = await interaction.channel.send(embed=discord.Embed(title=f'{prize}', description=f'> Expires: {discord.utils.format_dt(start_time + datetime.timedelta(0, int(time)), style="R")} \n> Winners: {winners}\n> Entries: {joined}\n> Required Role: {required_role} ', color=Color.blurple()))
+        View = GiveawayJoin(msg.id, required_role, joined, joined_list, prize, winners, start_time,time)
+        await msg.edit(view=View)
+        await interaction.followup.send(embed=discord.Embed(description=f'✅ Created giveaway!', color=Color.green()), ephemeral=True)
+
+        await asyncio.sleep(time)
+
+        winner_list = random.sample(View.joined_list, winners)
+
+        meesg = await interaction.channel.send(embed=discord.Embed(title=f'Giveaway ended!', description=f'> Winner\s: {", ".join(winner_list)}\n> Prize: {prize}', color=Color.blurple()))
+        await meesg.edit(view=GiveawayReroll(View.joined_list, winners, prize, meesg.id))
+
+
+        await msg.edit(view=None)
+
+
+    @commands.hybrid_command(name="orderfood", description='Order\'s you a random food! Arrives in 5 minutes.')
+    @commands.cooldown(1,30, commands.BucketType.user)
+    async def foodorder(self, ctx):
+        await ctx.defer()
+
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+
+        msg = await ctx.send(embed=discord.Embed(title='Food Order!', description=f'> {ctx.author} ({ctx.author.mention}) are you sure you want to order food?', color=Color.yellow()))
+        await msg.edit(view=FoodConfirm(ctx.author.id, msg.id))
+
+    @foodorder.error
+    async def on_foodorder_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='**Order Food error**', description=f'> Error: {str(error)}', color=Color.red()))
+
 
     @commands.hybrid_command(name="nick", description="Changes your nickname.")
     @commands.has_permissions(change_nickname=True)
@@ -40,7 +251,7 @@ class Community(commands.Cog):
         await db.execute(
             """CREATE TABLE IF NOT EXISTS logs(guild_name STRING, guild_id INTEGER, channel_id INTEGER)"""
         )
-            
+
         res = await db.execute(
             f"""SELECT channel_id FROM logs WHERE guild_id = {ctx.guild.id}"""
         )
@@ -83,6 +294,12 @@ class Community(commands.Cog):
         option2: str,
         option3: str = None,
         option4: str = None,
+        option5: str = None,
+        option6: str = None,
+        option7: str = None,
+        option8: str = None,
+        option9: str = None,
+        option10: str = None,
     ) -> None:
         
         print("[Createpoll] has just been executed!")
@@ -104,6 +321,8 @@ class Community(commands.Cog):
             poll.add_field(name="3)", value=option3, inline=True)
         if option4 != None:
             poll.add_field(name="4)", value=option4, inline=True)
+        if option5:
+            poll.add_field(name="5)", value=option5, inline=True)
 
         msg = await channel.send(embed=poll, content="||@everyone||")
         await ctx.send(embed=discord.Embed(description='✅ Poll created.', color=Color.green()), delete_after=5.0)
@@ -114,7 +333,8 @@ class Community(commands.Cog):
             await msg.add_reaction("3️⃣")
         if option4 != None:
             await msg.add_reaction("4️⃣")
-
+        if option5:
+            await msg.add_reaction("5️⃣")
     @createpoll.error
     async def on_createpoll_error(self, ctx, error):
         await ctx.send(embed=discord.Embed(title='**Createpoll error**', description=f'> Error: {str(error)}', color=Color.red()))
@@ -289,6 +509,16 @@ class Community(commands.Cog):
     async def on_dare_error(self, ctx, error):
         await ctx.send(embed=discord.Embed(title='**Dare error**', description=f'> Error: {str(error)}', color=Color.red()))
 
+    @commands.command()
+    async def nitrogift(self, ctx):
+        await ctx.message.delete()
+        embed = discord.Embed(title=f'**{ctx.author} gifted nitro!**',description=f'> You can claim it now by clicking redeem!\n> Expires in:  {discord.utils.format_dt(discord.utils.utcnow() + datetime.timedelta(0,60), style="R")}', color=Color.blurple()).set_thumbnail(url='https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fmedia.discordapp.net%2Fattachments%2F717627025128423502%2F719859473413570580%2Fimage0.jpg&f=1&nofb=1&ipt=a4e3db00e9d9f5caad3f0bd3742e41cc3bd07fc210058e0e93eff04e149e8c36&ipo=images')
+        msg = await ctx.send(embed=embed, view=NitroRedeem())
+        await asyncio.sleep(60.0)
+        await msg.edit(view=None, embed=discord.Embed(title=f'**{ctx.author} Trolled you..**',description=f'> I feel bad for whoever fell for that 😭\n> Don\'t fall for this shit again 😂', color=Color.red()).set_thumbnail(url='https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fi.kym-cdn.com%2Fphotos%2Fimages%2Fnewsfeed%2F002%2F213%2F963%2F293.jpg&f=1&nofb=1&ipt=f823b62ebc7bd23f50b1d063696aa85d006f4e2d712cf7b62ad76c4507bdf968&ipo=images').set_footer(text=f'{self.bot.command_prefix}nitrogift || Get that bitch back 😏'))
+    @nitrogift.error
+    async def on_nitrogift_error(self, ctx, error):
+        await ctx.send(embed=discord.Embed(title='NitroGift Error', description=f'> Error: {str(error)}'))
 
 ####################################################################################################################################
 #################################################################################################################################### TRUTH OR DARE END GIVEAWAY BEGIN
@@ -326,6 +556,131 @@ class Community(commands.Cog):
 ####################################################################################################################################
 #################################################################################################################################### GIVEAWAY END TAGS BEGIN
 ####################################################################################################################################
+
+
+    @commands.hybrid_command(name='createtag', description='Creates a tag to be used in the current guild.')
+    @commands.has_permissions(manage_messages=True)
+    async def create_tag(self, ctx, *,|tag_name:str, *,tag_info:str):
+        await ctx.defer()
+
+        msg = await ctx.send(embed=discord.Embed(title="**Creating tag...**", description=f"\n> Tag name: {tag_name}\n> Tag info: {tag_info}", color=Color.yellow()))
+
+        db = await aiosqlite.connect("tags.db")
+
+        await db.execute("""CREATE TABLE IF NOT EXISTS tags(guild_name, guild_id, tag_name, tag_info)""")
+
+
+        cur = await db.execute("""SELECT tag_name FROM tags WHERE guild_id = ? AND tag_name = ?""", (ctx.guild.id, tag_name, ))
+        res = await cur.fetchone()
+        if res:
+            await msg.edit(embed=discord.Embed(title='**Tag error**', description="> Error: `Tag already exists`", color=Color.red()))
+            return
+
+        await db.execute("""INSERT INTO tags(guild_name, guild_id, tag_name, tag_info) VALUES (?,?,?,?)""", (ctx.guild.name, ctx.guild.id, tag_name.lower(), tag_info, ))
+        await db.commit()
+
+        await msg.edit(embed=discord.Embed(title='**Created tag!**', description=f'> Tag name: {tag_name}\n> Tag info: {tag_info}', color=Color.green()))
+        await db.close()
+#    @create_tag.error
+#    async def on_create_tag_error(self, ctx, error):
+#        await ctx.send(embed=discord.Embed(title='**Createtag error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+    @commands.hybrid_command(name='edittag', description='Edits a tag that is already in the database.')
+    @commands.has_permissions(manage_messages=True)
+    async def edit_tag(self, ctx, tag_name:str, new_tag_name:str=None, new_tag_info:str=None):
+        await ctx.defer()
+
+        msg = await ctx.send(embed=discord.Embed(title="**Editing tag...**", description=f"\n> Tag name: {tag_name}", color=Color.yellow()))
+
+        db = await aiosqlite.connect("tags.db")
+
+        await db.execute("""CREATE TABLE IF NOT EXISTS tags(guild_name, guild_id, tag_name, tag_info)""")
+
+        if new_tag_info is None and new_tag_name is None:
+            await msg.edit(embed=discord.Embed(title='**Tag error**', description='> Error: `You must update at least the tag name or info`.', color=Color.red()))
+            return
+        if new_tag_info is not None:
+            await db.execute("""UPDATE tags SET tag_info = ? WHERE tag_name = ? AND guild_id = ?""", (new_tag_info.lower(), tag_name.lower(), ctx.guild.id, ))
+            await db.commit()
+        if new_tag_name is not None:
+            await db.execute("""UPDATE tags SET tag_name = ? WHERE tag_name = ? AND guild_id = ?""", (new_tag_name.lower(), tag_name.lower(), ctx.guild.id, ))
+            await db.commit()
+
+        await ctx.send(embed=discord.Embed(title='**Edited tag!**', description=f'> Tag name: {new_tag_name}\n> Tag info: {new_tag_info}', color=Color.green()))
+        await db.close()
+#    @edit_tag.error
+#    async def on_edit_tag_error(self, ctx, error):
+#        await ctx.send(embed=discord.Embed(title='**Edittag error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+##### TAG EDIT
+
+
+    @commands.hybrid_command(name='tags', description='Gives lists all tags in the database.')
+    async def list_tags(self, ctx):
+        await ctx.defer()
+
+        db = await aiosqlite.connect("tags.db")
+
+        cur = await db.execute("""SELECT * FROM tags WHERE guild_id = ?""", (ctx.guild.id, ))
+
+        ress = await cur.fetchall()
+        if not ress:
+            await ctx.send(embed=discord.Embed(title='**Tag error**', description="> Error: `No tags found`", color=Color.red()))
+            return
+        res = ress[0]
+
+        await ctx.send(embed=discord.Embed(title=f'**Tags for {ctx.guild.name}**', description='\n'.join(f"> {self.bot.command_prefix}tag `{name[2]}`" for name in ress), color=Color.blurple()))
+        await db.close()
+#    @list_tags.error
+#    async def on_list_tags_error(self, ctx, error):
+#        await ctx.send(embed=discord.Embed(title='**Tags error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+    @commands.hybrid_command(name='deletetag', description='Deletes a tag from the database.')
+    @commands.has_permissions(manage_messages=True)
+    async def delete_tag(self,ctx, tag_name:str):
+        await ctx.defer()
+
+        msg = await ctx.send(embed=discord.Embed(title="**Deleting tag...**", description=f"\n> Tag name: {tag_name}", color=Color.yellow()))
+
+        db = await aiosqlite.connect("tags.db")
+
+        cur = await db.execute("""SELECT tag_name FROM tags WHERE guild_id = ? AND tag_name = ?""", (ctx.guild.id, tag_name.lower(), ))
+
+        ress = await cur.fetchone()
+
+        if not ress:
+            await msg.edit(embed=discord.Embed(title='**Tag error**', description="> Error: `No tags found`", color=Color.red()))
+            return
+
+        await db.execute("""DELETE FROM tags WHERE tag_name = ?""", (tag_name.lower(), ))
+        await db.commit()
+
+        await msg.edit(embed=discord.Embed(title=f'**Tag deleted**', description=f'> Deleted tag: {tag_name}', color=Color.green()))
+        await db.close()
+#    @delete_tag.error
+#    async def on_delete_tag_error(self, ctx, error):
+#        await ctx.send(embed=discord.Embed(title='**Deletetag error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+    @commands.hybrid_command(name='tag', description='Fetches a tag from the database.')
+    async def fetch_tag(self, ctx, tag_name:str):
+        await ctx.defer()
+
+        db = await aiosqlite.connect("tags.db")
+
+        cur = await db.execute("""SELECT tag_name, tag_info FROM tags WHERE guild_id = ? AND tag_name = ?""", (ctx.guild.id, tag_name.lower(), ))
+
+        ress = await cur.fetchall()
+
+        if not ress:
+            await ctx.send(embed=discord.Embed(title='**Tag error**', description="> Error: Tag not found.", color=Color.red()))
+            return
+        res = ress[0]
+        await ctx.send(f'{res[1]}')
+        return
+
+#    @fetch_tag.error
+#    async def on_fetch_tag_error(self, ctx, error):
+#        await ctx.send(embed=discord.Embed(title='**Fetchtag error**', description=f'> Error: {str(error)}', color=Color.red()))
 
     @commands.hybrid_command(name='givesaves', description='Gives saves for the counting feature to a user.')
     @commands.has_permissions(moderate_members=True)
@@ -601,9 +956,6 @@ class Community(commands.Cog):
         self, ctx, error
     ):
         await ctx.send(embed=discord.Embed(title='**Keys error**', description=f'> Error: {str(error)}', color=Color.red()))
-
-
-
 
 async def setup(bot):
     await bot.add_cog(Community(bot))
