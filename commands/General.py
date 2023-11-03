@@ -4,6 +4,13 @@ from discord import ui
 from discord.interactions import Interaction
 import python_weather
 import random
+from gifs.gifs import bonk_gifs
+from gifs.gifs import cookie_gifs
+from gifs.gifs import beer_gifs
+from gifs.gifs import pizza_gifs
+from gifs.gifs import coffee_gifs
+import aiohttp
+import asyncio
 from discord.ext.commands import (
 	CommandNotFound,
 	CommandOnCooldown,
@@ -22,14 +29,13 @@ class General(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 
-		
-
 ####################################################################################################################################
 #################################################################################################################################### ECHO START
 ####################################################################################################################################
 
 	@commands.hybrid_command(name="echo", description="The bot says what you want it to.")
 	@commands.cooldown(1, 10, commands.BucketType.user)
+	@commands.has_permissions(manage_messages=True)
 	async def echo(self, ctx, * ,message: str) -> None:
 		print("[Echo] has just been executed")
 		await ctx.defer()
@@ -63,34 +69,6 @@ class General(commands.Cog):
 		self, ctx, error: CommandOnCooldown
 	):
 		await ctx.send(embed=discord.Embed(title='*Echo error**', description=f'> Error: {str(error)}', color=Color.red()))
-
-####################################################################################################################################
-#################################################################################################################################### ECHO END, KYS START
-####################################################################################################################################
-
-	@commands.hybrid_command(
-		name="kys", description="Tells the specified user to kill themself"
-	)
-	@commands.cooldown(1, 10, commands.BucketType.user)
-	async def kys(
-		self, ctx, member: discord.Member
-	) -> None:
-		print("[Kys] has just been executed")
-		await ctx.defer()
-
-		if member.id == ctx.author.id:
-			await ctx.send(embed=discord.Embed(title="**Kys error**",description=f'> Error: `Member is same as executing user`', color=Color.red()), ephemeral = True)
-			return
-		embed = discord.Embed(
-			title="**Kys**",
-			description=f"\n> Alert: {member.mention}, {ctx.author.mention} thinks you should carve your wrists!:O",
-			color=Color.green())
-		await ctx.send(embed=embed)
-	@kys.error
-	async def on_kys_error(
-		self, ctx, error: CommandOnCooldown
-	):
-		await ctx.send(embed=discord.Embed(title='**Kys error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 
 ####################################################################################################################################
@@ -161,7 +139,7 @@ class General(commands.Cog):
 
 		async with python_weather.Client(unit=python_weather.METRIC) as client:
 			weather = await client.get(city)
-			await msg.edit(discord.Embed(title=f'**Weather in {city.capitalize()}**', description=f"> ☁️ Weather: {weather.current.description}\n> 🌥️ Temperature: {weather.current.temperature}C°\n> 💦 Humidity: {weather.current.humidity}%\n> 🚩 Wind speed: {weather.current.wind_speed} Km/h\n> 🚩 Wind direction: {weather.current.wind_direction}",
+			await msg.edit(embed=discord.Embed(title=f'**Weather in {city.capitalize()}**', description=f"> ☁️ Weather: {weather.current.description}\n> 🌥️ Temperature: {weather.current.temperature}C°\n> 💦 Humidity: {weather.current.humidity}%\n> 🚩 Wind speed: {weather.current.wind_speed} Km/h\n> 🚩 Wind direction: {weather.current.wind_direction}",
 			color=Color.blue()))
 	@weather.error
 	async def on_weather_error(self, ctx, error: CommandOnCooldown):
@@ -192,6 +170,150 @@ class General(commands.Cog):
 #################################################################################################################################### 8BALL END
 ####################################################################################################################################
 
+	@commands.hybrid_command(name='bonk', description='Horni bonk someone.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def bonk(self,ctx,member:discord.Member):
+		print('[Bonk] has just been executed.')
+		await ctx.defer()
+
+		gif = random.choice(bonk_gifs)
+
+		await ctx.send(embed=discord.Embed(description=f'{ctx.author.mention} bonked {member.mention}', color=Color.blurple()).set_image(url=gif))
+	@bonk.error
+	async def on_bonk_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Bonk error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+	@commands.hybrid_command(name='cookie', description='Gives someone a cookie.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def cookie(self,ctx,member:discord.Member):
+		print('[Cookie] has just been executed.')
+		await ctx.defer()
+
+		gif = random.choice(cookie_gifs)
+
+		await ctx.send(embed=discord.Embed(description=f'{member.mention}, {ctx.author.mention} gave you cookies!', color=Color.blurple()).set_image(url=gif))
+	@cookie.error
+	async def on_cookie_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Cookie error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+	@commands.hybrid_command(name='beer', description='Gives someone a cold beer.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def beer(self,ctx,member:discord.Member):
+		print('[Beer] has just been executed.')
+		await ctx.defer()
+
+		gif = random.choice(beer_gifs)
+
+		await ctx.send(embed=discord.Embed(description=f'{member.mention}, {ctx.author.mention} gave you a beer!', color=Color.blurple()).set_image(url=gif))
+	@beer.error
+	async def on_beer_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Beer error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+	@commands.hybrid_command(name='emojirob', description='Robs the image of an emoji that you enter.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def emojirob(self, ctx, emoji:discord.PartialEmoji):
+		await ctx.defer()
+
+		msg = await ctx.send(embed=discord.Embed(description='<:yellowdot:1148198566448337018> Stealing emoji...', color=Color.yellow()))
+
+		num = random.randint(2,7)
+		floatnum = num / 10
+
+		await asyncio.sleep(floatnum)
+
+		await msg.edit(embed=discord.Embed(description='<:greentick:1148198571330515025> Emoji image stolen.', color=Color.green()).set_image(url=emoji.url))
+	@emojirob.error
+	async def on_emojirob_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Emojirob error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+	@commands.hybrid_command(name='avatar', description='Gets the avatar of a user.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def avatar(self, ctx, user:discord.User=None):
+		await ctx.defer()
+
+		msg = await ctx.send(embed=discord.Embed(description=f'<:yellowdot:1148198566448337018> Fetching avatar...', color=Color.yellow()))
+
+		num = random.randint(2,7)
+		floatnum = num / 10
+
+		await asyncio.sleep(floatnum)
+		if user is None:
+			await msg.edit(embed=discord.Embed(description=f'<:greentick:1148198571330515025> Your avatar.', color=Color.green()).set_image(url=ctx.author.avatar.url))
+			return
+		await msg.edit(embed=discord.Embed(description=f'<:greentick:1148198571330515025> {user.mention}\'s Avatar.', color=Color.green()).set_image(url=user.avatar.url))
+	@avatar.error
+	async def on_avatar_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Avatar error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+	@commands.hybrid_command(name='emojisteal', description='Steals an emoji that you enter and adds it to the guild.')
+	@commands.has_permissions(manage_emojis=True)
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def emojisteal(self, ctx, emoji:discord.PartialEmoji, *,name):
+		await ctx.defer()
+
+		msg = await ctx.send(embed=discord.Embed(description='<:yellowdot:1148198566448337018> Stealing emoji...', color=Color.yellow()))
+
+		num = random.randint(2,7)
+		floatnum = num / 10
+
+		await asyncio.sleep(floatnum)
+
+		await msg.edit(embed=discord.Embed(description='<:yellowdot:1148198566448337018> Emoji stolen, adding emoji...', color=Color.yellow()))
+
+		emojj = await ctx.guild.create_custom_emoji(name=name, image=await emoji.read())
+		await msg.edit(embed=discord.Embed(description=f'<:greentick:1148198571330515025> Emoji stolen and added. {emojj}', color=Color.green()))
+	@emojisteal.error
+	async def on_emojisteal_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Emojisteal error**', description=f'> Error: {str(error)}', color=Color.red()))
+	
+	@commands.hybrid_command(name='emojiadd', description='Adds an emoji to the guild with a name you chose.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def emojiadd(self, ctx,url, *,name):
+		await ctx.defer()
+
+		async with aiohttp.ClientSession() as cs:
+			async with cs.get(url) as res:
+
+				data = await res.read()
+
+		msg = await ctx.send(embed=discord.Embed(description='<:yellowdot:1148198566448337018> Adding emoji...', color=Color.yellow()))
+
+		num = random.randint(2,7)
+		floatnum = num / 10
+
+		await asyncio.sleep(floatnum)
+
+		emojj = await ctx.guild.create_custom_emoji(name=name, image=data)
+		await msg.edit(embed=discord.Embed(description=f'<:greentick:1148198571330515025> Emoji added. {emojj}', color=Color.green()))
+	@emojiadd.error
+	async def on_emojiadd_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Emojiadd error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+	@commands.hybrid_command(name='coffee', description='Gives someone a hot coffee.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def coffee(self,ctx,member:discord.Member):
+		print('[Coffee] has just been executed.')
+		await ctx.defer()
+
+		gif = random.choice(coffee_gifs)
+
+		await ctx.send(embed=discord.Embed(description=f'{member.mention}, {ctx.author.mention} gave you coffee!', color=Color.blurple()).set_image(url=gif))
+	@coffee.error
+	async def on_coffee_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Coffee error**', description=f'> Error: {str(error)}', color=Color.red()))
+
+	@commands.hybrid_command(name='pizza', description='Gives someone a warm pizza.')
+	@commands.cooldown(1,15, commands.BucketType.user)
+	async def pizza(self,ctx,member:discord.Member):
+		print('[Pizza] has just been executed.')
+		await ctx.defer()
+
+		gif = random.choice(pizza_gifs)
+
+		await ctx.send(embed=discord.Embed(description=f'{member.mention}, {ctx.author.mention} gave you pizza!', color=Color.blurple()).set_image(url=gif))
+	@pizza.error
+	async def on_pizza_error(self, ctx, error):
+		await ctx.send(embed=discord.Embed(title='**Pizza error**', description=f'> Error: {str(error)}', color=Color.red()))
 
 
 async def setup(bot):
